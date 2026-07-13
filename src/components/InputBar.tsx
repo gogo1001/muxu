@@ -12,7 +12,6 @@ export default function InputBar() {
   const [showStickers, setShowStickers] = useState(false);
 
   const activeConv = conversations.find((c) => c.id === activeConversationId);
-  const isFlipping = activeConv?.isFlipping || false;
   const isGroup = activeConv?.type === "group";
 
   const onSend = () => {
@@ -104,8 +103,7 @@ export default function InputBar() {
       <div className="mx-auto flex max-w-3xl items-end gap-2">
         <button
           onClick={() => setShowStickers(!showStickers)}
-          disabled={isFlipping}
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border transition hover:bg-black/5 disabled:opacity-40"
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border transition hover:bg-black/5"
           style={{
             borderColor: showStickers ? "var(--accent)" : "var(--card-border)",
             background: showStickers ? "var(--accent)" : "var(--card)",
@@ -129,20 +127,19 @@ export default function InputBar() {
             onKeyDown={onKeyDown}
             rows={1}
             placeholder={placeholder}
-            disabled={isFlipping}
-            className="block w-full resize-none bg-transparent text-[15px] leading-relaxed placeholder:opacity-50 focus:outline-none disabled:opacity-50"
+            className="block w-full resize-none bg-transparent text-[15px] leading-relaxed placeholder:opacity-50 focus:outline-none"
             style={{ color: "var(--text)" }}
           />
         </div>
         <button
           onClick={onSend}
-          disabled={!text.trim() || isFlipping}
+          disabled={!text.trim()}
           className="group flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl transition disabled:cursor-not-allowed"
           style={{
             background: "var(--accent)",
             color: "var(--card)",
             boxShadow: "0 2px 0 rgba(0,0,0,0.15)",
-            opacity: !text.trim() || isFlipping ? 0.4 : 1,
+            opacity: !text.trim() ? 0.4 : 1,
           }}
           aria-label="发送"
         >
