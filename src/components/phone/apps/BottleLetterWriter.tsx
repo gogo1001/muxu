@@ -108,7 +108,7 @@ export default function BottleLetterWriter({ onClose, contactId }: { onClose: ()
 
   return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/60" />
 
       {/* 信纸 */}
       <div

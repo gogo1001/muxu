@@ -94,6 +94,26 @@ export default function DriftBottleModal() {
   const [whisperReplied, setWhisperReplied] = useState(false);
   const replyInputRef = useRef<HTMLTextAreaElement>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [expandedLetters, setExpandedLetters] = useState<Set<string>>(new Set());
+  const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set());
+
+  const toggleLetterExpand = (id: string) => {
+    setExpandedLetters((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleReplyExpand = (id: string) => {
+    setExpandedReplies((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const today = getTodayKey();
   const todayPicks = bottleStarPicks[today] || { morning: false, noon: false, evening: false };
@@ -512,15 +532,16 @@ export default function DriftBottleModal() {
                     </span>
                   </div>
                   <div
-                    className="relative p-5"
+                    className="relative p-5 cursor-pointer"
                     style={{
                       backgroundImage: `url(${img("letter.jpg")})`,
                       backgroundSize: "cover",
                       backgroundPosition: "center",
                       minHeight: "200px",
                     }}
+                    onClick={() => toggleLetterExpand(letter.id)}
                   >
-                    <div className="relative z-10 whitespace-pre-line text-center leading-loose"
+                    <div className={`relative z-10 whitespace-pre-line text-center leading-loose ${!expandedLetters.has(letter.id) && letter.content.length > 100 ? "line-clamp-4" : ""}`}
                       style={{
                         fontFamily: letter.font || "'Kaiti SC', serif",
                         fontSize: `${letter.fontSize || 16}px`,
@@ -529,6 +550,11 @@ export default function DriftBottleModal() {
                     >
                       {letter.content}
                     </div>
+                    {letter.content.length > 100 && (
+                      <div className="relative z-10 mt-2 text-center text-xs" style={{ color: "#1a3a6b80" }}>
+                        {expandedLetters.has(letter.id) ? "点击收起" : "点击展开全文"}
+                      </div>
+                    )}
                     <div className="pointer-events-none absolute inset-0" style={{ boxShadow: "inset 0 0 60px rgba(255,255,255,0.3)" }} />
                   </div>
                   <div className="space-y-1.5 px-4 py-2.5 border-t" style={{ borderColor: "#f0f0f0" }}>
@@ -573,16 +599,22 @@ export default function DriftBottleModal() {
                     <div className="px-4 pb-3">
                       <div className="mb-2 text-xs font-medium" style={{ color: "#3A7CA5" }}>TA 的回信：</div>
                       <div
-                        className="relative rounded-xl overflow-hidden"
+                        className="relative rounded-xl overflow-hidden cursor-pointer"
                         style={{
                           backgroundImage: `url(${img("letter.jpg")})`,
                           backgroundSize: "cover",
                           backgroundPosition: "center",
                         }}
+                        onClick={() => toggleReplyExpand(letter.id)}
                       >
-                        <div className="relative z-10 p-4 whitespace-pre-line text-sm leading-relaxed" style={{ color: "#1a3a6b" }}>
+                        <div className={`relative z-10 p-4 whitespace-pre-line text-sm leading-relaxed ${!expandedReplies.has(letter.id) && letter.reply.length > 100 ? "line-clamp-4" : ""}`} style={{ color: "#1a3a6b" }}>
                           {letter.reply}
                         </div>
+                        {letter.reply.length > 100 && (
+                          <div className="relative z-10 pb-2 text-center text-xs" style={{ color: "#1a3a6b80" }}>
+                            {expandedReplies.has(letter.id) ? "点击收起" : "点击展开全文"}
+                          </div>
+                        )}
                         <div className="pointer-events-none absolute inset-0" style={{ boxShadow: "inset 0 0 40px rgba(255,255,255,0.2)" }} />
                       </div>
                     </div>
