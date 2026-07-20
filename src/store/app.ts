@@ -120,7 +120,7 @@ interface BottleData {
   noteCards: { id: string; content: string }[];
   whisperCards: { id: string; content: string }[];
   diary: { id: string; type: "star" | "ocean" | "letter"; content: string; reply?: string; herReply?: string; herReplyAt?: number; timestamp: number }[];
-  letters: { id: string; content: string; font: string; fontSize: number; timestamp: number; receivedAt?: number; replyAt?: number; reply?: string }[];
+  letters: { id: string; content: string; font: string; fontSize: number; timestamp: number; expectedReceiveAt: number; expectedReplyAt: number; receivedAt?: number; replyAt?: number; reply?: string }[];
   starPicks: Record<string, { morning: boolean; noon: boolean; evening: boolean }>;
 }
 
@@ -759,12 +759,19 @@ export const useAppStore = create<
       sendBottleLetter: (contactId, content, font, fontSize) => {
         const letterId = uid("bletter");
         const now = Date.now();
+        // 20分钟到50分钟后，对方收到漂流瓶
+        const receiveDelay = randRange(20 * 60 * 1000, 50 * 60 * 1000);
+        const expectedReceiveAt = now + receiveDelay;
+        // 5-8小时后回复
+        const replyDelay = randRange(5 * 60 * 60 * 1000, 8 * 60 * 60 * 1000);
+        const expectedReplyAt = expectedReceiveAt + replyDelay;
+
         set((s) => {
           const data = { ...s.bottleData };
           const bd = getBottleData(data, contactId);
           data[contactId] = {
             ...bd,
-            letters: [...bd.letters, { id: letterId, content, font, fontSize, timestamp: now }],
+            letters: [...bd.letters, { id: letterId, content, font, fontSize, timestamp: now, expectedReceiveAt, expectedReplyAt }],
             diary: [
               { id: uid("dletter"), type: "letter" as const, content, timestamp: now },
               ...bd.diary,
@@ -773,8 +780,6 @@ export const useAppStore = create<
           return { bottleData: data };
         });
 
-        // 20分钟到50分钟后，对方收到漂流瓶
-        const receiveDelay = randRange(20 * 60 * 1000, 50 * 60 * 1000);
         window.setTimeout(() => {
           set((s) => {
             const data = { ...s.bottleData };
@@ -788,8 +793,6 @@ export const useAppStore = create<
             return { bottleData: data };
           });
 
-          // 5-8小时后抽取聊天字卡回复
-          const replyDelay = randRange(5 * 60 * 60 * 1000, 8 * 60 * 60 * 1000);
           window.setTimeout(() => {
             const st = get();
             const contact = st.contacts.find((c) => c.id === contactId);

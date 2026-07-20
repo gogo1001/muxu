@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { useAppStore } from "@/store/app";
-import { FLAVOR_THEMES, SIMPLE_THEMES, RICH_THEMES } from "@/theme/themes";
+import { FLAVOR_THEMES, SIMPLE_THEMES, RICH_THEMES, DARK_THEMES, LIGHT_EXTRA_THEMES } from "@/theme/themes";
 import { BUBBLE_STYLES, FONTS, WALLPAPERS } from "@/types/settings";
 import { RotateCcw, Upload, X } from "lucide-react";
 
@@ -58,6 +58,32 @@ export default function BeautyPanel() {
         </div>
         <div className="grid grid-cols-4 gap-2">
           {RICH_THEMES.map((t) => (
+            <ThemeButton
+              key={t.id}
+              theme={t}
+              active={beauty.themeId === t.id}
+              onClick={() => setBeauty({ themeId: t.id })}
+            />
+          ))}
+        </div>
+        <div className="mb-3 mt-4 text-[11px]" style={{ color: "var(--text-soft)" }}>
+          浅色精选
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {LIGHT_EXTRA_THEMES.map((t) => (
+            <ThemeButton
+              key={t.id}
+              theme={t}
+              active={beauty.themeId === t.id}
+              onClick={() => setBeauty({ themeId: t.id })}
+            />
+          ))}
+        </div>
+        <div className="mb-3 mt-4 text-[11px]" style={{ color: "var(--text-soft)" }}>
+          深色主题
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {DARK_THEMES.map((t) => (
             <ThemeButton
               key={t.id}
               theme={t}

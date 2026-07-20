@@ -554,16 +554,20 @@ export default function DriftBottleModal() {
                         </span>
                       </div>
                     )}
-                    {!letter.receivedAt && (
+                    {!letter.receivedAt && letter.expectedReceiveAt && (
                       <div className="flex items-center gap-1 text-xs" style={{ color: "#999" }}>
                         <span>⏳</span>
-                        <span>漂流中，预计几小时后对方收到</span>
+                        <span>
+                          漂流中，预计 {new Date(letter.expectedReceiveAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })} 左右对方收到
+                        </span>
                       </div>
                     )}
-                    {letter.receivedAt && !letter.replyAt && (
+                    {letter.receivedAt && !letter.replyAt && letter.expectedReplyAt && (
                       <div className="flex items-center gap-1 text-xs" style={{ color: "#999" }}>
-                        <span>⏳</span>
-                        <span>等待对方回信中...</span>
+                        <span>✍️</span>
+                        <span>
+                          对方正在回信，预计 {new Date(letter.expectedReplyAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })} 左右收到
+                        </span>
                       </div>
                     )}
                   </div>
