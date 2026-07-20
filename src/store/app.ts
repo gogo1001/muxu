@@ -119,7 +119,7 @@ interface ConversationStore {
 interface BottleData {
   noteCards: { id: string; content: string }[];
   whisperCards: { id: string; content: string }[];
-  diary: { id: string; type: "star" | "ocean" | "letter"; content: string; reply?: string; herReply?: string; herReplyAt?: number; timestamp: number }[];
+  diary: { id: string; type: "star" | "ocean" | "letter"; content: string; reply?: string; herReply?: string; herReplyAt?: number; expectedHerReplyAt?: number; timestamp: number }[];
   letters: { id: string; content: string; font: string; fontSize: number; timestamp: number; expectedReceiveAt?: number; expectedReplyAt?: number; receivedAt?: number; replyAt?: number; reply?: string }[];
   starPicks: Record<string, { morning: boolean; noon: boolean; evening: boolean }>;
 }
@@ -734,16 +734,31 @@ export const useAppStore = create<
         });
         return id;
       },
-      replyBottleOcean: (contactId, id, reply) =>
+      replyBottleOcean: (contactId, id, reply) => {
+        // 4-6分钟后对方回复
+        const replyDelay = Math.floor(Math.random() * (6 * 60 * 1000 - 4 * 60 * 1000)) + 4 * 60 * 1000;
+        const expectedHerReplyAt = Date.now() + replyDelay;
         set((s) => {
           const data = { ...s.bottleData };
           const bd = getBottleData(data, contactId);
           data[contactId] = {
             ...bd,
-            diary: bd.diary.map((d) => (d.id === id ? { ...d, reply } : d)),
+            diary: bd.diary.map((d) =>
+              d.id === id ? { ...d, reply, expectedHerReplyAt } : d
+            ),
           };
           return { bottleData: data };
-        }),
+        });
+        // 设置定时器
+        window.setTimeout(() => {
+          const st = get();
+          const contact = st.contacts.find((c) => c.id === contactId);
+          const chatCards = contact?.cards.chat || [];
+          if (chatCards.length === 0) return;
+          const randomCard = chatCards[Math.floor(Math.random() * chatCards.length)];
+          get().receiveBottleOceanReply(contactId, id, randomCard.content);
+        }, replyDelay);
+      },
       receiveBottleOceanReply: (contactId, id, reply) =>
         set((s) => {
           const data = { ...s.bottleData };
@@ -2319,6 +2334,175 @@ export const useAppStore = create<
         if (!state.conversations.find((c: any) => c.id === state.activeConversationId)) {
           state.activeConversationId = state.groupConversationId;
         }
+
+        // 恢复漂流瓶的待处理定时器
+        const setupBottleTimers = () => {
+          const st = useAppStore.getState();
+          const now = Date.now();
+
+          // 遍历所有联系人的 bottleData
+          Object.keys(st.bottleData).forEach((contactId) => {
+            const bd = st.bottleData[contactId];
+            if (!bd) return;
+
+            // 1. 恢复海洋小物待回复
+            bd.diary.forEach((d) => {
+              if (d.type === "ocean" && d.reply && !d.herReply && d.expectedHerReplyAt && d.expectedHerReplyAt > now) {
+                const delay = d.expectedHerReplyAt - now;
+                window.setTimeout(() => {
+                  const state2 = useAppStore.getState();
+                  const contact = state2.contacts.find((c) => c.id === contactId);
+                  const chatCards = contact?.cards.chat || [];
+                  if (chatCards.length === 0) return;
+                  const randomCard = chatCards[Math.floor(Math.random() * chatCards.length)];
+                  useAppStore.getState().receiveBottleOceanReply(contactId, d.id, randomCard.content);
+                }, delay);
+              }
+            });
+
+            // 2. 恢复信件待收到/待回复
+            bd.letters.forEach((letter) => {
+              if (!letter.receivedAt && letter.expectedReceiveAt && letter.expectedReceiveAt > now) {
+                // 还没收到，设置收到定时器
+                const receiveDelay = letter.expectedReceiveAt - now;
+                window.setTimeout(() => {
+                  useAppStore.setState((s) => {
+                    const data = { ...s.bottleData };
+                    const bd2 = data[contactId];
+                    if (!bd2) return s;
+                    data[contactId] = {
+                      ...bd2,
+                      letters: bd2.letters.map((l) =>
+                        l.id === letter.id ? { ...l, receivedAt: Date.now() } : l
+                      ),
+                    };
+                    return { bottleData: data };
+                  });
+
+                  // 收到后设置回复定时器
+                  const state3 = useAppStore.getState();
+                  const bd3 = state3.bottleData[contactId];
+                  const updatedLetter = bd3?.letters.find((l) => l.id === letter.id);
+                  if (updatedLetter && !updatedLetter.replyAt && updatedLetter.expectedReplyAt && updatedLetter.expectedReplyAt > Date.now()) {
+                    const replyDelay = updatedLetter.expectedReplyAt - Date.now();
+                    window.setTimeout(() => {
+                      const state4 = useAppStore.getState();
+                      const contact = state4.contacts.find((c) => c.id === contactId);
+                      const chatCards = contact?.cards.chat || [];
+                      if (chatCards.length === 0) return;
+                      const replyCount = Math.floor(Math.random() * 7) + 6;
+                      const shuffled = [...chatCards].sort(() => Math.random() - 0.5);
+                      const selected = shuffled.slice(0, Math.min(replyCount, shuffled.length));
+                      const replyText = selected.map((c) => c.content).join("\n\n---\n\n");
+                      useAppStore.setState((s) => {
+                        const data = { ...s.bottleData };
+                        const bd4 = data[contactId];
+                        if (!bd4) return s;
+                        data[contactId] = {
+                          ...bd4,
+                          letters: bd4.letters.map((l) =>
+                            l.id === letter.id
+                              ? { ...l, replyAt: Date.now(), reply: replyText }
+                              : l
+                          ),
+                          diary: bd4.diary.map((d) =>
+                            d.type === "letter" && d.content === letter.content && !d.reply
+                              ? { ...d, reply: replyText }
+                              : d
+                          ),
+                        };
+                        return { bottleData: data };
+                      });
+                    }, replyDelay);
+                  }
+                }, receiveDelay);
+              } else if (letter.receivedAt && !letter.replyAt && letter.expectedReplyAt && letter.expectedReplyAt > now) {
+                // 已经收到但还没回复，设置回复定时器
+                const replyDelay = letter.expectedReplyAt - now;
+                window.setTimeout(() => {
+                  const state4 = useAppStore.getState();
+                  const contact = state4.contacts.find((c) => c.id === contactId);
+                  const chatCards = contact?.cards.chat || [];
+                  if (chatCards.length === 0) return;
+                  const replyCount = Math.floor(Math.random() * 7) + 6;
+                  const shuffled = [...chatCards].sort(() => Math.random() - 0.5);
+                  const selected = shuffled.slice(0, Math.min(replyCount, shuffled.length));
+                  const replyText = selected.map((c) => c.content).join("\n\n---\n\n");
+                  useAppStore.setState((s) => {
+                    const data = { ...s.bottleData };
+                    const bd4 = data[contactId];
+                    if (!bd4) return s;
+                    data[contactId] = {
+                      ...bd4,
+                      letters: bd4.letters.map((l) =>
+                        l.id === letter.id
+                          ? { ...l, replyAt: Date.now(), reply: replyText }
+                          : l
+                      ),
+                      diary: bd4.diary.map((d) =>
+                        d.type === "letter" && d.content === letter.content && !d.reply
+                          ? { ...d, reply: replyText }
+                          : d
+                      ),
+                    };
+                    return { bottleData: data };
+                  });
+                }, replyDelay);
+              }
+            });
+          });
+        };
+
+        // 延迟一点执行，确保 store 已经初始化
+        window.setTimeout(() => {
+          // 先给旧数据补上缺失的预计时间
+          const s = useAppStore.getState();
+          const data = { ...s.bottleData };
+          let changed = false;
+
+          Object.keys(data).forEach((contactId) => {
+            const bd = data[contactId];
+            if (!bd) return;
+
+            // 给海洋小物补预计回复时间
+            const now = Date.now();
+            bd.diary = bd.diary.map((d) => {
+              if (d.type === "ocean" && d.reply && !d.herReply && !d.expectedHerReplyAt) {
+                changed = true;
+                const delay = Math.floor(Math.random() * (6 * 60 * 1000 - 4 * 60 * 1000)) + 4 * 60 * 1000;
+                return { ...d, expectedHerReplyAt: now + delay };
+              }
+              return d;
+            });
+
+            // 给信件补预计时间
+            bd.letters = bd.letters.map((l) => {
+              if (!l.receivedAt && !l.expectedReceiveAt) {
+                changed = true;
+                const receiveDelay = Math.floor(Math.random() * (50 * 60 * 1000 - 20 * 60 * 1000)) + 20 * 60 * 1000;
+                const replyDelay = Math.floor(Math.random() * (8 * 60 * 60 * 1000 - 5 * 60 * 60 * 1000)) + 5 * 60 * 60 * 1000;
+                return {
+                  ...l,
+                  expectedReceiveAt: now + receiveDelay,
+                  expectedReplyAt: now + receiveDelay + replyDelay,
+                };
+              }
+              if (l.receivedAt && !l.replyAt && !l.expectedReplyAt) {
+                changed = true;
+                const replyDelay = Math.floor(Math.random() * (8 * 60 * 60 * 1000 - 5 * 60 * 60 * 1000)) + 5 * 60 * 60 * 1000;
+                return { ...l, expectedReplyAt: now + replyDelay };
+              }
+              return l;
+            });
+          });
+
+          if (changed) {
+            useAppStore.setState({ bottleData: data });
+          }
+
+          // 然后设置定时器
+          setupBottleTimers();
+        }, 1000);
 
         const setupAutoActions = () => {
           const minHours = 3;

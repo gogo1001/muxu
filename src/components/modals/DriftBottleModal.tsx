@@ -8,6 +8,14 @@ import BottleLetterWriter from "@/components/phone/apps/BottleLetterWriter";
 const BASE = import.meta.env.BASE_URL;
 const img = (name: string) => `${BASE}driftbottle/${name}`;
 
+function formatRemainingTime(ms: number): string {
+  if (ms <= 0) return "即将";
+  const hours = Math.floor(ms / (60 * 60 * 1000));
+  const minutes = Math.floor((ms % (60 * 60 * 1000)) / (60 * 1000));
+  if (hours > 0) return `${hours}小时${minutes}分钟`;
+  return `${minutes}分钟`;
+}
+
 interface StarItem {
   id: string;
   x: number;
@@ -183,17 +191,6 @@ export default function DriftBottleModal() {
     if (!contactId || !pickedWhisperId || !whisperReply.trim()) return;
     replyBottleOcean(contactId, pickedWhisperId, whisperReply.trim());
     setWhisperReplied(true);
-
-    // 4-6分钟后对方从聊天字卡随机回复
-    const replyDelay = Math.floor(Math.random() * (6 * 60 * 1000 - 4 * 60 * 1000)) + 4 * 60 * 1000;
-    window.setTimeout(() => {
-      const st = useAppStore.getState();
-      const contact = st.contacts.find((c) => c.id === contactId);
-      const cards = contact?.cards?.chat || [];
-      if (cards.length === 0) return;
-      const randomCard = cards[Math.floor(Math.random() * cards.length)];
-      receiveBottleOceanReply(contactId, pickedWhisperId, randomCard.content);
-    }, replyDelay);
   };
 
   const closeWhisper = () => {
@@ -452,6 +449,11 @@ export default function DriftBottleModal() {
                 <div className="inline-block rounded-xl bg-blue-50 px-4 py-2 text-sm" style={{ color: "#1a3a6b" }}>
                   ✅ 已回复，TA 收到后会回你的
                 </div>
+                {pickedWhisperId && bottleData?.diary?.find((d) => d.id === pickedWhisperId)?.expectedHerReplyAt && (
+                  <div className="mt-2 text-xs" style={{ color: "#666" }}>
+                    预计还有 {formatRemainingTime((bottleData?.diary?.find((d) => d.id === pickedWhisperId)?.expectedHerReplyAt || 0) - Date.now())} 收到回复
+                  </div>
+                )}
                 <div className="mt-3">
                   <button
                     onClick={closeWhisper}
@@ -554,7 +556,7 @@ export default function DriftBottleModal() {
                       <div className="flex items-center gap-1 text-xs" style={{ color: "#999" }}>
                         <span>⏳</span>
                         <span>
-                          漂流中，预计 {new Date(letter.expectedReceiveAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })} 左右对方收到
+                          漂流中，还有 {formatRemainingTime(letter.expectedReceiveAt - Date.now())} 对方收到
                         </span>
                       </div>
                     )}
@@ -562,7 +564,7 @@ export default function DriftBottleModal() {
                       <div className="flex items-center gap-1 text-xs" style={{ color: "#999" }}>
                         <span>✍️</span>
                         <span>
-                          对方正在回信，预计 {new Date(letter.expectedReplyAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })} 左右收到
+                          对方正在回信，还有 {formatRemainingTime(letter.expectedReplyAt - Date.now())} 左右收到
                         </span>
                       </div>
                     )}
