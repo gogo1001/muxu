@@ -4,6 +4,7 @@ import ThemeApplier from "@/theme/ThemeApplier";
 import FloatingPhone from "@/components/FloatingPhone";
 import FloatingMusic from "@/components/FloatingMusic";
 import MusicPlayerModal from "@/components/MusicPlayerModal";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import { useEffect, useState } from "react";
 import { useAppStore } from "@/store/app";
 
@@ -11,6 +12,7 @@ const basename = import.meta.env.BASE_URL;
 
 export default function App() {
   const [notificationGranted, setNotificationGranted] = useState(false);
+  const hasHydrated = useAppStore((s) => (s as any)._hasHydrated);
   const messages = useAppStore((s) => {
     const activeConv = s.conversations.find((c) => c.id === s.activeConversationId);
     return activeConv?.messages || [];
@@ -65,12 +67,10 @@ export default function App() {
     }
   }, [messages.length, notificationGranted, beauty, pushNotification]);
 
-  // 监听信件和备忘录回复：对方发信 / 回复我的备忘录
   useEffect(() => {
     if (!notificationGranted || !document.hidden || !pushNotification) return;
     const latest = memos[0];
     if (!latest || latest.from === "me") return;
-    // 仅在最近 10 秒内新增的备忘录触发，避免页面加载时一次性补发
     if (Date.now() - latest.timestamp > 10000) return;
 
     const senderName =
@@ -81,17 +81,39 @@ export default function App() {
     });
   }, [memos.length, notificationGranted, beauty, pushNotification]);
 
+  if (!hasHydrated) {
+    return (
+      <>
+        <ThemeApplier />
+        <div className="flex h-full w-full items-center justify-center" style={{ background: "var(--bg)" }}>
+          <div className="text-center" style={{ color: "var(--text-soft)" }}>
+            <div className="mb-3 text-2xl">💾</div>
+            <div className="text-sm">加载中...</div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <ThemeApplier />
-      <Router basename={basename}>
-        <Routes>
-          <Route path="/" element={<Home />} />
-        </Routes>
-      </Router>
-      <FloatingPhone />
-      <FloatingMusic />
-      <MusicPlayerModal />
+      <ErrorBoundary>
+        <Router basename={basename}>
+          <Routes>
+            <Route path="/" element={<Home />} />
+          </Routes>
+        </Router>
+      </ErrorBoundary>
+      <ErrorBoundary fallback={<></>}>
+        <FloatingPhone />
+      </ErrorBoundary>
+      <ErrorBoundary fallback={<></>}>
+        <FloatingMusic />
+      </ErrorBoundary>
+      <ErrorBoundary fallback={<></>}>
+        <MusicPlayerModal />
+      </ErrorBoundary>
     </>
   );
 }
