@@ -44,6 +44,8 @@ export default function BottleLetterWriter({ onClose, contactId }: { onClose: ()
   const [page, setPage] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
   const [pageFlip, setPageFlip] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const cursorRef = useRef<number>(0);
 
   // 自动分页
   const pages: string[] = [];
@@ -136,19 +138,35 @@ export default function BottleLetterWriter({ onClose, contactId }: { onClose: ()
 
           {/* 写字区 - 从1/8处开始，不滚动，超长自动到下一页 */}
           <textarea
+            ref={textareaRef}
             value={currentPage}
             onChange={(e) => {
+              const cursorPos = e.target.selectionStart;
               const newText = text.slice(0, page * PAGE_CHARS) + e.target.value + text.slice((page + 1) * PAGE_CHARS);
+              cursorRef.current = cursorPos;
               setText(newText);
+              // 在下一帧恢复光标位置
+              requestAnimationFrame(() => {
+                if (textareaRef.current) {
+                  textareaRef.current.selectionStart = cursorRef.current;
+                  textareaRef.current.selectionEnd = cursorRef.current;
+                }
+              });
             }}
             placeholder="在此写信..."
-            className="absolute inset-0 resize-none overflow-hidden border-none bg-transparent px-6 pb-20 pt-[12.5%] text-center focus:outline-none"
+            className="absolute left-0 right-0 top-0 bottom-0 resize-none overflow-hidden border-none bg-transparent text-center focus:outline-none"
             style={{
               fontFamily: font,
               fontSize: `${fontSize}px`,
               color: "#1a3a6b",
               lineHeight: 1.8,
               background: "transparent",
+              paddingTop: "15%",
+              paddingLeft: "24px",
+              paddingRight: "24px",
+              paddingBottom: "80px",
+              height: "100%",
+              width: "100%",
             }}
           />
 
