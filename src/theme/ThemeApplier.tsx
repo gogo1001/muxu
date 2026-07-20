@@ -21,6 +21,7 @@ export default function ThemeApplier() {
     root.style.setProperty("--card", theme.card);
     root.style.setProperty("--card-border", theme.cardBorder);
     root.style.setProperty("--my-bubble", theme.myBubble);
+    root.style.setProperty("--my-bubble-text", (theme as any).myBubbleText || theme.text);
     root.style.setProperty("--her-card", theme.herCard);
     root.style.setProperty("--phone-shell", theme.phoneShell);
     root.style.setProperty("--phone-screen", theme.phoneScreen);

@@ -1162,9 +1162,13 @@ export const useAppStore = create<
       deleteContact: (id) =>
         set((s) => ({
           contacts: s.contacts.filter((c) => c.id !== id),
-          conversations: s.conversations.filter(
-            (conv) => !(conv.type === "private" && conv.memberIds[0] === id)
-          ),
+          conversations: s.conversations
+            .filter((conv) => !(conv.type === "private" && conv.memberIds[0] === id))
+            .map((conv) =>
+              conv.type === "group"
+                ? { ...conv, memberIds: conv.memberIds.filter((mid) => mid !== id) }
+                : conv
+            ),
           activeContactId: s.activeContactId === id ? (s.contacts.find((c) => c.id !== id)?.id || null) : s.activeContactId,
         })),
 

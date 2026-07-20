@@ -785,6 +785,7 @@ function MessageBubble({
 }) {
   const isLeft = side === "left";
   const bgColor = isLeft ? "var(--her-card)" : "var(--my-bubble)";
+  const textColor = isLeft ? "var(--text)" : "var(--my-bubble-text)";
   const isCuteMoe = useAppStore((s) => s.beauty.themeId) === "cute-moe";
   const songs = useAppStore((s) => s.songs);
   const setMusicCurrentIndex = useAppStore((s) => s.setMusicCurrentIndex);
@@ -923,7 +924,7 @@ function MessageBubble({
           style={{
             ...bubbleStyle,
             background: bgColor,
-            color: "var(--text)",
+            color: textColor,
             overflowWrap: "anywhere",
             wordBreak: "break-word",
           }}
@@ -1007,7 +1008,7 @@ function RPSBubble({
           style={{
             ...bubbleStyle,
             background: isLeft ? "var(--her-card)" : "var(--my-bubble)",
-            color: "var(--text)",
+            color: isLeft ? "var(--text)" : "var(--my-bubble-text)",
             minWidth: "200px",
           }}
         >
@@ -1097,7 +1098,7 @@ function PollBubble({
           style={{
             ...bubbleStyle,
             background: isLeft ? "var(--her-card)" : "var(--my-bubble)",
-            color: "var(--text)",
+            color: isLeft ? "var(--text)" : "var(--my-bubble-text)",
             minWidth: "240px",
           }}
         >
