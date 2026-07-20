@@ -287,12 +287,12 @@ export default function DriftBottleModal() {
         </div>
       </div>
 
-      <div className="absolute top-28 left-0 right-0 z-30" style={{ height: "30%", pointerEvents: "none" }}>
+      <div className="absolute top-28 left-0 right-0 z-40" style={{ height: "30%", pointerEvents: "none" }}>
         {stars.map((star) => (
           <button
             key={star.id}
             onClick={() => handleStarClick(star.id)}
-            className="absolute animate-twinkle transition-transform hover:scale-125 active:scale-90"
+            className="absolute animate-twinkle transition-transform hover:scale-125 active:scale-90 cursor-pointer"
             style={{
               left: `${star.x}%`,
               top: `${star.y}%`,
@@ -300,7 +300,7 @@ export default function DriftBottleModal() {
               height: star.size,
               transform: "translate(-50%, -50%)",
               pointerEvents: "auto",
-              zIndex: 40,
+              zIndex: 50,
             }}
           >
             <img src={img("star.png")} alt="star" className="h-full w-full object-contain drop-shadow-[0_0_8px_rgba(255,230,100,0.8)]" />
@@ -322,12 +322,12 @@ export default function DriftBottleModal() {
 
       </div>
 
-      <div className="absolute bottom-24 left-0 right-0 z-10" style={{ height: "25%", pointerEvents: "none" }}>
+      <div className="absolute bottom-24 left-0 right-0 z-30" style={{ height: "25%", pointerEvents: "none" }}>
         {oceanItems.map((item) => (
           <button
             key={item.id}
             onClick={() => handleOceanClick(item)}
-            className="absolute transition-transform hover:scale-125 active:scale-90"
+            className="absolute transition-transform hover:scale-125 active:scale-90 cursor-pointer"
             style={{
               left: `${item.x}%`,
               top: `${item.y}%`,
@@ -335,6 +335,7 @@ export default function DriftBottleModal() {
               height: 48,
               transform: "translate(-50%, -50%)",
               pointerEvents: "auto",
+              zIndex: 40,
             }}
           >
             <img src={oceanImages[item.type]} alt={item.type} className="h-full w-full object-contain drop-shadow-lg" />

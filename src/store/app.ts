@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { INITIAL_CARDS } from "@/data/initialCards";
-import { DEFAULT_NOTE_CARDS, DEFAULT_WHISPER_CARDS, DEFAULT_REPLY_CARDS } from "@/data/driftBottleCards";
+import { DEFAULT_NOTE_CARDS, DEFAULT_WHISPER_CARDS } from "@/data/driftBottleCards";
 import { idbStorage } from "@/store/idbStorage";
 import type { Card, CardModule } from "@/types/card";
 import type {
@@ -119,7 +119,6 @@ interface ConversationStore {
 interface BottleData {
   noteCards: { id: string; content: string }[];
   whisperCards: { id: string; content: string }[];
-  replyCards: { id: string; content: string }[];
   diary: { id: string; type: "star" | "ocean" | "letter"; content: string; reply?: string; timestamp: number }[];
   letters: { id: string; content: string; font: string; fontSize: number; timestamp: number; receivedAt?: number; replyAt?: number; reply?: string }[];
   starPicks: Record<string, { morning: boolean; noon: boolean; evening: boolean }>;
@@ -129,7 +128,6 @@ function createDefaultBottleData(): BottleData {
   return {
     noteCards: JSON.parse(JSON.stringify(DEFAULT_NOTE_CARDS)),
     whisperCards: JSON.parse(JSON.stringify(DEFAULT_WHISPER_CARDS)),
-    replyCards: JSON.parse(JSON.stringify(DEFAULT_REPLY_CARDS)),
     diary: [],
     letters: [],
     starPicks: {},
@@ -174,8 +172,6 @@ interface GlobalState {
   deleteBottleNoteCard: (contactId: string, id: string) => void;
   addBottleWhisperCards: (contactId: string, cards: string[]) => void;
   deleteBottleWhisperCard: (contactId: string, id: string) => void;
-  addBottleReplyCards: (contactId: string, cards: string[]) => void;
-  deleteBottleReplyCard: (contactId: string, id: string) => void;
   // 漂流瓶拾取/写信
   pickBottleStar: (contactId: string, content: string) => void;
   pickBottleOcean: (contactId: string, content: string) => void;
@@ -706,25 +702,6 @@ export const useAppStore = create<
           data[contactId] = { ...bd, whisperCards: bd.whisperCards.filter((c) => c.id !== id) };
           return { bottleData: data };
         }),
-      addBottleReplyCards: (contactId, cards) =>
-        set((s) => {
-          const data = { ...s.bottleData };
-          const bd = getBottleData(data, contactId);
-          const existing = new Set(bd.replyCards.map((c) => c.content.trim()));
-          const toAdd = cards
-            .map((c) => c.trim())
-            .filter((c) => c && !existing.has(c) && !existing.add(c))
-            .map((c) => ({ id: uid("br"), content: c }));
-          data[contactId] = { ...bd, replyCards: [...bd.replyCards, ...toAdd] };
-          return { bottleData: data };
-        }),
-      deleteBottleReplyCard: (contactId, id) =>
-        set((s) => {
-          const data = { ...s.bottleData };
-          const bd = getBottleData(data, contactId);
-          data[contactId] = { ...bd, replyCards: bd.replyCards.filter((c) => c.id !== id) };
-          return { bottleData: data };
-        }),
 
       // =========== 漂流瓶拾取/写信 ===========
       pickBottleStar: (contactId, content) =>
@@ -780,8 +757,8 @@ export const useAppStore = create<
           return { bottleData: data };
         });
 
-        // 30分钟到1小时后，对方收到漂流瓶
-        const receiveDelay = randRange(30 * 60 * 1000, 60 * 60 * 1000);
+        // 20分钟到50分钟后，对方收到漂流瓶
+        const receiveDelay = randRange(20 * 60 * 1000, 50 * 60 * 1000);
         window.setTimeout(() => {
           set((s) => {
             const data = { ...s.bottleData };
@@ -795,15 +772,15 @@ export const useAppStore = create<
             return { bottleData: data };
           });
 
-          // 2-3小时后抽取回信字卡回复
-          const replyDelay = randRange(2 * 60 * 60 * 1000, 3 * 60 * 60 * 1000);
+          // 5-8小时后抽取聊天字卡回复
+          const replyDelay = randRange(5 * 60 * 60 * 1000, 8 * 60 * 60 * 1000);
           window.setTimeout(() => {
             const st = get();
-            const bd = getBottleData(st.bottleData, contactId);
-            const replyCards = bd.replyCards;
-            if (replyCards.length === 0) return;
-            const replyCount = Math.floor(Math.random() * 4) + 3; // 3-6条
-            const shuffled = [...replyCards].sort(() => Math.random() - 0.5);
+            const contact = st.contacts.find((c) => c.id === contactId);
+            const chatCards = contact?.cards.chat || [];
+            if (chatCards.length === 0) return;
+            const replyCount = Math.floor(Math.random() * 7) + 6; // 6-12条
+            const shuffled = [...chatCards].sort(() => Math.random() - 0.5);
             const selected = shuffled.slice(0, Math.min(replyCount, shuffled.length));
             const replyText = selected.map((c) => c.content).join("\n\n---\n\n");
             set((s) => {
@@ -2385,6 +2362,62 @@ export const useAppStore = create<
           }, delay);
         };
         setupTravelUpdate();
+
+        const setupWorkUpdate = () => {
+          const updateWork = () => {
+            const store = useAppStore.getState();
+            store.contacts.forEach((contact) => {
+              const workContents = contact.cards.workContent || [];
+              const workLocations = contact.cards.workLocation || [];
+              const workStatuses = contact.cards.workStatus || [];
+              if (workContents.length === 0 && workLocations.length === 0 && workStatuses.length === 0) return;
+
+              const newContent = workContents.length > 0
+                ? workContents[Math.floor(Math.random() * workContents.length)].content
+                : contact.status.work.content;
+              const newLocation = workLocations.length > 0
+                ? workLocations[Math.floor(Math.random() * workLocations.length)].content
+                : contact.status.work.location;
+              const newStatus = workStatuses.length > 0
+                ? workStatuses[Math.floor(Math.random() * workStatuses.length)].content
+                : contact.status.work.status;
+
+              useAppStore.setState((s) => ({
+                contacts: s.contacts.map((c) =>
+                  c.id === contact.id
+                    ? {
+                        ...c,
+                        status: {
+                          ...c.status,
+                          work: {
+                            ...c.status.work,
+                            content: newContent,
+                            location: newLocation,
+                            status: (newStatus === "工作中" || newStatus === "休息中" || newStatus === "下班") ? newStatus as any : c.status.work.status,
+                            lastStatusChange: Date.now(),
+                          },
+                        },
+                      }
+                    : c
+                ),
+              }));
+            });
+          };
+
+          const scheduleNextUpdate = () => {
+            const updatesPerDay = Math.floor(Math.random() * 3) + 5; // 5-7次
+            const baseInterval = (24 * 60 * 60 * 1000) / updatesPerDay;
+            const variation = baseInterval * 0.3; // 30%波动
+            const delay = baseInterval + (Math.random() - 0.5) * 2 * variation;
+            window.setTimeout(() => {
+              updateWork();
+              scheduleNextUpdate();
+            }, Math.max(delay, 1 * 60 * 60 * 1000)); // 至少1小时
+          };
+
+          scheduleNextUpdate();
+        };
+        setupWorkUpdate();
 
         const setupMailboxSend = () => {
           const minHours = 8;

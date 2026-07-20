@@ -1,32 +1,28 @@
 import { useState, useRef } from "react";
-import { ArrowLeft, Plus, Trash2, FileText, Volume2, MessageCircle, Reply } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, FileText, Volume2 } from "lucide-react";
 import { useAppStore } from "@/store/app";
 
-type CardType = "note" | "whisper" | "reply";
+type CardType = "note" | "whisper";
 
 const CARD_CONFIG: Record<CardType, { title: string; icon: React.ReactNode; color: string }> = {
   note: { title: "纸条库", icon: <FileText className="h-4 w-4" />, color: "#FFB347" },
   whisper: { title: "悄悄话库", icon: <Volume2 className="h-4 w-4" />, color: "#0066B3" },
-  reply: { title: "回信库", icon: <Reply className="h-4 w-4" />, color: "#7CB342" },
 };
 
 export default function BottleCardLibrary({ onBack, contactId }: { onBack: () => void; contactId: string | null }) {
   const bottleData = useAppStore((s) => contactId ? s.bottleData[contactId] : null);
   const bottleNoteCards = bottleData?.noteCards || [];
   const bottleWhisperCards = bottleData?.whisperCards || [];
-  const bottleReplyCards = bottleData?.replyCards || [];
   const addBottleNoteCards = useAppStore((s) => s.addBottleNoteCards);
   const deleteBottleNoteCard = useAppStore((s) => s.deleteBottleNoteCard);
   const addBottleWhisperCards = useAppStore((s) => s.addBottleWhisperCards);
   const deleteBottleWhisperCard = useAppStore((s) => s.deleteBottleWhisperCard);
-  const addBottleReplyCards = useAppStore((s) => s.addBottleReplyCards);
-  const deleteBottleReplyCard = useAppStore((s) => s.deleteBottleReplyCard);
 
   const [activeType, setActiveType] = useState<CardType>("note");
   const [inputText, setInputText] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const cards = activeType === "note" ? bottleNoteCards : activeType === "whisper" ? bottleWhisperCards : bottleReplyCards;
+  const cards = activeType === "note" ? bottleNoteCards : bottleWhisperCards;
 
   const handleAdd = () => {
     if (!contactId) return;
@@ -34,16 +30,14 @@ export default function BottleCardLibrary({ onBack, contactId }: { onBack: () =>
     if (!text) return;
     const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
     if (activeType === "note") addBottleNoteCards(contactId, lines);
-    else if (activeType === "whisper") addBottleWhisperCards(contactId, lines);
-    else addBottleReplyCards(contactId, lines);
+    else addBottleWhisperCards(contactId, lines);
     setInputText("");
   };
 
   const handleDelete = (id: string) => {
     if (!contactId) return;
     if (activeType === "note") deleteBottleNoteCard(contactId, id);
-    else if (activeType === "whisper") deleteBottleWhisperCard(contactId, id);
-    else deleteBottleReplyCard(contactId, id);
+    else deleteBottleWhisperCard(contactId, id);
   };
 
   const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -55,8 +49,7 @@ export default function BottleCardLibrary({ onBack, contactId }: { onBack: () =>
       const text = String(ev.target?.result || "");
       const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
       if (activeType === "note") addBottleNoteCards(contactId, lines);
-      else if (activeType === "whisper") addBottleWhisperCards(contactId, lines);
-      else addBottleReplyCards(contactId, lines);
+      else addBottleWhisperCards(contactId, lines);
     };
     reader.readAsText(file);
     e.target.value = "";
@@ -74,7 +67,7 @@ export default function BottleCardLibrary({ onBack, contactId }: { onBack: () =>
       <div className="flex gap-1 border-b px-3 py-2" style={{ borderColor: "var(--card-border)" }}>
         {(Object.keys(CARD_CONFIG) as CardType[]).map((t) => {
           const cfg = CARD_CONFIG[t];
-          const list = t === "note" ? bottleNoteCards : t === "whisper" ? bottleWhisperCards : bottleReplyCards;
+          const list = t === "note" ? bottleNoteCards : bottleWhisperCards;
           return (
             <button
               key={t}

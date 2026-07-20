@@ -94,7 +94,7 @@ export default function PhoneApp({ onBack }: Props) {
                 style={{ borderColor: "var(--card-border)", background: "var(--card)" }}
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold" style={{ background: "var(--her-card)" }}>
-                  {getContactAvatar(record.contactId)}
+                  {record.direction === "incoming" ? "来电" : getContactAvatar(record.contactId)}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
