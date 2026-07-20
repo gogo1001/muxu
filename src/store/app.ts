@@ -2295,6 +2295,31 @@ export const useAppStore = create<
         if (!state.bottleData) state.bottleData = {};
         if (state.lastTravelUpdateAt === undefined) state.lastTravelUpdateAt = 0;
 
+        // 清理已删除联系人的残留数据
+        const contactIds = new Set(state.contacts.map((c: any) => c.id));
+        // 从所有会话中移除不存在的成员
+        state.conversations = state.conversations
+          .filter((conv: any) => {
+            // 私聊会话：成员必须存在
+            if (conv.type === "private") {
+              return conv.memberIds.every((mid: string) => contactIds.has(mid));
+            }
+            return true;
+          })
+          .map((conv: any) => {
+            if (conv.type === "group") {
+              return {
+                ...conv,
+                memberIds: conv.memberIds.filter((mid: string) => contactIds.has(mid)),
+              };
+            }
+            return conv;
+          });
+        // 如果当前活动会话已被清理，切换到群聊
+        if (!state.conversations.find((c: any) => c.id === state.activeConversationId)) {
+          state.activeConversationId = state.groupConversationId;
+        }
+
         const setupAutoActions = () => {
           const minHours = 3;
           const maxHours = 5;
