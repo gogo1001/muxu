@@ -386,8 +386,6 @@ export const useAppStore = create<
   persist(
     (set, get) => ({
       // =========== 全局状态 ===========
-      _hasHydrated: false,
-      _setHasHydrated: () => set({ _hasHydrated: true }),
       phoneOpen: false,
       settingsOpen: false,
       caughtMessage: null,
@@ -2339,8 +2337,6 @@ export const useAppStore = create<
           }, hours * 60 * 60 * 1000);
         };
         setupBatteryUpdate();
-
-        state._hasHydrated = true;
       },
     },
   ),
