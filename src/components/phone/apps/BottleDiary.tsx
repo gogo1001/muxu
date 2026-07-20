@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useAppStore } from "@/store/app";
 
 const BASE = import.meta.env.BASE_URL;
@@ -8,10 +7,6 @@ const img = (name: string) => `${BASE}driftbottle/${name}`;
 export default function BottleDiary({ onBack, contactId }: { onBack: () => void; contactId: string | null }) {
   const bottleData = useAppStore((s) => contactId ? s.bottleData[contactId] : null);
   const bottleDiary = bottleData?.diary || [];
-  const [page, setPage] = useState(0);
-  const PER_PAGE = 5;
-  const totalPages = Math.ceil(bottleDiary.length / PER_PAGE) || 1;
-  const currentPage = bottleDiary.slice(page * PER_PAGE, (page + 1) * PER_PAGE);
 
   const formatTime = (timestamp: number) => {
     const d = new Date(timestamp);
@@ -47,7 +42,7 @@ export default function BottleDiary({ onBack, contactId }: { onBack: () => void;
           </div>
         ) : (
           <div className="space-y-3">
-            {currentPage.map((entry) => {
+            {bottleDiary.map((entry) => {
               const label = typeLabel[entry.type] || { text: "记录", emoji: "📝" };
               return (
                 <div
@@ -92,31 +87,6 @@ export default function BottleDiary({ onBack, contactId }: { onBack: () => void;
           </div>
         )}
       </div>
-
-      {/* 翻页 */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-3 border-t px-3 py-2" style={{ borderColor: "var(--card-border)", background: "var(--card)" }}>
-          <button
-            onClick={() => setPage((p) => Math.max(0, p - 1))}
-            disabled={page === 0}
-            className="flex h-7 w-7 items-center justify-center rounded-full border transition hover:bg-black/5 disabled:opacity-30"
-            style={{ borderColor: "var(--card-border)", color: "var(--text)" }}
-          >
-            <ChevronLeft className="h-3.5 w-3.5" />
-          </button>
-          <span className="text-[11px]" style={{ color: "var(--text-soft)" }}>
-            {page + 1} / {totalPages}
-          </span>
-          <button
-            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-            disabled={page >= totalPages - 1}
-            className="flex h-7 w-7 items-center justify-center rounded-full border transition hover:bg-black/5 disabled:opacity-30"
-            style={{ borderColor: "var(--card-border)", color: "var(--text)" }}
-          >
-            <ChevronRight className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      )}
     </div>
   );
 }
