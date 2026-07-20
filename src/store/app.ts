@@ -2167,12 +2167,15 @@ export const useAppStore = create<
           if (c.status?.mood?.isAngry === undefined) c.status.mood.isAngry = false;
           if (!c.status?.mood?.curve) c.status.mood.curve = [50, 52, 55, 58, 56, 60, 62, 60, 58, 55, 57, 60];
           if (!c.riceFullness) c.riceFullness = 0;
-          if (!c.cards) c.cards = createDefaultCards();
-          const modules = ["breakfast", "lunch", "dinner"] as const;
-          for (const m of modules) {
-            if (!c.cards[m] || c.cards[m].length === 0) {
-              c.cards[m] = JSON.parse(JSON.stringify(INITIAL_CARDS[m]));
-            }
+          if (!c.cards) {
+            c.cards = createDefaultCards();
+          } else {
+            // 补全所有缺失的模块
+            (Object.keys(INITIAL_CARDS) as CardModule[]).forEach((m) => {
+              if (!c.cards[m] || c.cards[m].length === 0) {
+                c.cards[m] = JSON.parse(JSON.stringify(INITIAL_CARDS[m]));
+              }
+            });
           }
         }
         if (!state.cardGroups) state.cardGroups = ["日常", "撒娇", "关心"];
