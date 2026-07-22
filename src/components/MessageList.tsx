@@ -39,30 +39,30 @@ function HiddenPetPart({ part, side }: { part: "ear" | "top" | "accessory"; side
   const petSize = 50;
   let clipStyle: React.CSSProperties = { overflow: "hidden" };
   let flip = false;
-  let petOffset = -28;
+  let petOffset = 0;
 
   if (part === "ear") {
-    clipStyle = { ...clipStyle, height: petSize * 0.15, width: petSize };
+    clipStyle = { ...clipStyle, height: petSize * 0.28, width: petSize };
     flip = side === "left";
-    petOffset = -36;
+    petOffset = 0;
   } else if (part === "top") {
-    clipStyle = { ...clipStyle, height: petSize * 0.18, width: petSize };
+    clipStyle = { ...clipStyle, height: petSize * 0.32, width: petSize };
     flip = side === "left";
-    petOffset = -32;
+    petOffset = 0;
   } else {
-    clipStyle = { ...clipStyle, height: petSize * 0.12, width: petSize * 0.22 };
+    clipStyle = { ...clipStyle, height: petSize * 0.2, width: petSize * 0.28 };
     if (side === "left") {
       clipStyle = { ...clipStyle, marginLeft: 0 };
     } else {
-      clipStyle = { ...clipStyle, marginLeft: petSize * 0.78 };
+      clipStyle = { ...clipStyle, marginLeft: petSize * 0.72 };
     }
-    petOffset = -24;
+    petOffset = 0;
   }
 
   return (
     <div style={{ ...clipStyle, transform: flip ? "scaleX(-1)" : "none" }}>
       <div style={{ marginTop: `${petOffset}px` }}>
-        <PetCanvas config={staticConfig} size={petSize} patSignal={0} />
+        <PetCanvas config={staticConfig} size={petSize} patSignal={0} static={true} />
       </div>
     </div>
   );

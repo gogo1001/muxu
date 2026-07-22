@@ -72,7 +72,7 @@ function blinkText(text: string) {
 
 // ============ 单个宠物的 Canvas 渲染（用于展示模式） ============
 
-export function PetCanvas({ config, size = 120, patSignal }: { config: BallPetConfig; size?: number; patSignal?: number }) {
+export function PetCanvas({ config, size = 120, patSignal, static: isStatic = false }: { config: BallPetConfig; size?: number; patSignal?: number; static?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const timeRef = useRef(0);
   const blinkRef = useRef({ timer: 0, isBlinking: false });
@@ -110,9 +110,11 @@ export function PetCanvas({ config, size = 120, patSignal }: { config: BallPetCo
 
     let raf = 0;
     const draw = () => {
-      timeRef.current += 0.016;
+      if (!isStatic) {
+        timeRef.current += 0.016;
+      }
       const t = timeRef.current;
-      if (config.blink) {
+      if (config.blink && !isStatic) {
         blinkRef.current.timer += 0.016;
         if (!blinkRef.current.isBlinking && blinkRef.current.timer > 2.5 + Math.random() * 2.5) {
           blinkRef.current.isBlinking = true;
@@ -141,11 +143,13 @@ export function PetCanvas({ config, size = 120, patSignal }: { config: BallPetCo
         ctx.fillText("💕", h.x, h.y);
         ctx.restore();
       }
-      raf = requestAnimationFrame(draw);
+      if (!isStatic) {
+        raf = requestAnimationFrame(draw);
+      }
     };
     draw();
     return () => cancelAnimationFrame(raf);
-  }, [config, size]);
+  }, [config, size, isStatic]);
 
   return <canvas ref={canvasRef} />;
 }
