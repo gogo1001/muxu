@@ -317,8 +317,8 @@ export default function DesktopPet() {
             }}
             onClick={handlePeekClick}
           >
-            <div className="overflow-hidden" style={{ height: 42 }}>
-              <div style={{ marginTop: "-12px" }}>
+            <div className="overflow-hidden" style={{ height: 28 }}>
+              <div style={{ marginTop: "-10px" }}>
                 <PetCanvas config={petConfig} size={64} patSignal={0} />
               </div>
             </div>
