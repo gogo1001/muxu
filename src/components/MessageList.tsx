@@ -36,27 +36,27 @@ function HiddenPetPart({ part, side }: { part: "ear" | "top" | "accessory"; side
     blink: false,
   }), [config]);
 
-  const petSize = 56;
+  const petSize = 50;
   let clipStyle: React.CSSProperties = { overflow: "hidden" };
   let flip = false;
-  let petOffset = -20;
+  let petOffset = -28;
 
   if (part === "ear") {
-    clipStyle = { ...clipStyle, height: petSize * 0.2, width: petSize };
+    clipStyle = { ...clipStyle, height: petSize * 0.15, width: petSize };
     flip = side === "left";
-    petOffset = -30;
+    petOffset = -36;
   } else if (part === "top") {
-    clipStyle = { ...clipStyle, height: petSize * 0.25, width: petSize };
+    clipStyle = { ...clipStyle, height: petSize * 0.18, width: petSize };
     flip = side === "left";
-    petOffset = -24;
+    petOffset = -32;
   } else {
-    clipStyle = { ...clipStyle, height: petSize * 0.16, width: petSize * 0.28 };
+    clipStyle = { ...clipStyle, height: petSize * 0.12, width: petSize * 0.22 };
     if (side === "left") {
       clipStyle = { ...clipStyle, marginLeft: 0 };
     } else {
-      clipStyle = { ...clipStyle, marginLeft: petSize * 0.72 };
+      clipStyle = { ...clipStyle, marginLeft: petSize * 0.78 };
     }
-    petOffset = -18;
+    petOffset = -24;
   }
 
   return (
@@ -999,8 +999,8 @@ function MessageBubble({
           alt="image"
           className="animate-bubbleIn rounded-2xl border object-cover"
           style={{
-            maxWidth: "200px",
-            maxHeight: "280px",
+            maxWidth: "140px",
+            maxHeight: "180px",
             borderColor: "var(--card-border)",
           }}
         />
@@ -1030,7 +1030,7 @@ function MessageBubble({
           <img
             src={message.sticker}
             alt="sticker"
-            className="max-h-32 max-w-[180px] animate-bubbleIn rounded-xl object-contain"
+            className="max-h-24 max-w-[120px] animate-bubbleIn rounded-xl object-contain"
           />
         ) : (
           <div
