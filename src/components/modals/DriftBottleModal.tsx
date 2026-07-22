@@ -404,17 +404,19 @@ export default function DriftBottleModal() {
 
       {pickedNote && (
         <div
-          className="fixed left-1/2 top-1/2 z-50 w-[min(340px,85%)] -translate-x-1/2 -translate-y-1/2 animate-popIn rounded-2xl bg-white/95 p-6 shadow-2xl backdrop-blur"
+          className="absolute inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
           onClick={() => {
             setPickedNote(null);
             setRefreshKey((k) => k + 1);
           }}
         >
-          <div className="mb-2 text-center text-3xl">⭐</div>
-          <div className="text-center text-base font-medium leading-relaxed" style={{ color: "#1a3a6b", fontFamily: "'Songti SC', serif" }}>
-            {pickedNote}
+          <div className="w-[min(340px,85%)] animate-popIn rounded-2xl bg-white/95 p-6 shadow-2xl backdrop-blur">
+            <div className="mb-2 text-center text-3xl">⭐</div>
+            <div className="text-center text-base font-medium leading-relaxed" style={{ color: "#1a3a6b", fontFamily: "'Songti SC', serif" }}>
+              {pickedNote}
+            </div>
+            <div className="mt-4 text-center text-xs text-gray-400">点击任意处关闭</div>
           </div>
-          <div className="mt-4 text-center text-xs text-gray-400">点击任意处关闭</div>
         </div>
       )}
 

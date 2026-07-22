@@ -61,6 +61,7 @@ export default function InputBar() {
       style={{
         borderColor: "var(--card-border)",
         background: "color-mix(in srgb, var(--bg-deep) 70%, transparent)",
+        paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))",
       }}
     >
       <input

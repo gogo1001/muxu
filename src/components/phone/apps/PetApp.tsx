@@ -30,6 +30,8 @@ const KAOMOJI = ["◕‿◕","●´ω｀●","≧▽≦","｡♥‿♥｡","◕�
 
 const HEADWEAR_LIST = [
   { id: "none", name: "无" },{ id: "catEars", name: "猫耳" },{ id: "bunnyEars", name: "兔耳" },
+  { id: "dogEars", name: "狗耳" },{ id: "bearEars", name: "熊耳" },{ id: "foxEars", name: "狐狸耳" },
+  { id: "deerEars", name: "鹿耳" },{ id: "pandaEars", name: "熊猫耳" },
   { id: "bow", name: "蝴蝶结" },{ id: "crown", name: "皇冠" },{ id: "flower", name: "头花" },
   { id: "antenna", name: "触角" },{ id: "devil", name: "恶魔角" },{ id: "halo", name: "光环" },
   { id: "ribbon", name: "丝带" },{ id: "starPin", name: "星星夹" },{ id: "heartPin", name: "爱心夹" },
@@ -40,12 +42,6 @@ const ACCESSORY_LIST = [
   { id: "none", name: "无" },{ id: "stars", name: "小星星" },{ id: "hearts", name: "小爱心" },
   { id: "bubbles", name: "泡泡" },{ id: "sparkles", name: "闪光" },{ id: "petals", name: "花瓣" },
   { id: "notes", name: "音符" },{ id: "rainbow", name: "彩虹" },
-];
-
-const BODY_DECO_LIST = [
-  { id: "none", name: "无" },{ id: "catTail", name: "猫尾" },{ id: "bunnyTail", name: "兔尾" },
-  { id: "foxTail", name: "狐尾" },{ id: "wings", name: "小翅膀" },{ id: "cape", name: "小披风" },
-  { id: "scarf", name: "围巾" },{ id: "bowtie", name: "领结" },
 ];
 
 const EYE_CHARS: Record<string, string> = {
@@ -76,10 +72,29 @@ function blinkText(text: string) {
 
 // ============ 单个宠物的 Canvas 渲染（用于展示模式） ============
 
-export function PetCanvas({ config, size = 120 }: { config: BallPetConfig; size?: number }) {
+export function PetCanvas({ config, size = 120, patSignal }: { config: BallPetConfig; size?: number; patSignal?: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const timeRef = useRef(0);
   const blinkRef = useRef({ timer: 0, isBlinking: false });
+  const patRef = useRef({ t0: -10, hearts: [] as { x: number; y: number; vy: number; life: number }[] });
+  const lastPatRef = useRef(patSignal ?? 0);
+
+  // 摸摸触发：squash 动画 + 飞心
+  useEffect(() => {
+    if (patSignal === undefined) return;
+    if (patSignal === lastPatRef.current) return;
+    lastPatRef.current = patSignal;
+    patRef.current.t0 = timeRef.current;
+    const hearts = patRef.current.hearts;
+    for (let i = 0; i < 5; i++) {
+      hearts.push({
+        x: size / 2 + (Math.random() - 0.5) * size * 0.4,
+        y: size * 0.42,
+        vy: -size * 0.02 - Math.random() * size * 0.015,
+        life: 1,
+      });
+    }
+  }, [patSignal, size]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -105,8 +120,27 @@ export function PetCanvas({ config, size = 120 }: { config: BallPetConfig; size?
           setTimeout(() => { blinkRef.current.isBlinking = false; }, 150);
         }
       }
+      // 摸摸 squash 强度（0~1，0.6s 衰减）
+      const patDt = t - patRef.current.t0;
+      const patAmt = patDt < 0.6 ? Math.sin((patDt / 0.6) * Math.PI) : 0;
+
       ctx.clearRect(0, 0, size, size);
-      drawPet(ctx, config, size, t, blinkRef.current.isBlinking);
+      drawPet(ctx, config, size, t, blinkRef.current.isBlinking, patAmt);
+
+      // 飞心
+      const hearts = patRef.current.hearts;
+      for (let i = hearts.length - 1; i >= 0; i--) {
+        const h = hearts[i];
+        h.y += h.vy;
+        h.life -= 0.016;
+        if (h.life <= 0) { hearts.splice(i, 1); continue; }
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, h.life);
+        ctx.font = `${size * 0.1}px serif`;
+        ctx.textAlign = "center";
+        ctx.fillText("💕", h.x, h.y);
+        ctx.restore();
+      }
       raf = requestAnimationFrame(draw);
     };
     draw();
@@ -117,7 +151,7 @@ export function PetCanvas({ config, size = 120 }: { config: BallPetConfig; size?
 }
 
 // 通用绘制函数（DIY和展示都用它）
-export function drawPet(ctx: CanvasRenderingContext2D, c: BallPetConfig, size: number, t: number, isBlinking: boolean) {
+export function drawPet(ctx: CanvasRenderingContext2D, c: BallPetConfig, size: number, t: number, isBlinking: boolean, patAmt = 0) {
   const W = size, H = size;
   const cx = W / 2;
   const cy = H / 2 + size * 0.04;
@@ -127,8 +161,10 @@ export function drawPet(ctx: CanvasRenderingContext2D, c: BallPetConfig, size: n
   const bounceY = c.bounce ? -Math.abs(Math.sin(t * 3)) * 14 : 0;
 
   const baseRX = size * 0.3;
-  const rx = baseRX * (1 + breathe);
-  const ry = baseRX * (c.flatness / 100) * (1 + breathe);
+  // 摸摸 squash：被压扁变宽
+  const patSquash = patAmt * 0.18;
+  const rx = baseRX * (1 + breathe + patSquash);
+  const ry = baseRX * (c.flatness / 100) * (1 + breathe - patSquash);
 
   // 阴影
   ctx.save();
@@ -141,9 +177,6 @@ export function drawPet(ctx: CanvasRenderingContext2D, c: BallPetConfig, size: n
   ctx.ellipse(cx + wobble, cy + ry + 12 + bounceY * 0.3, rx * 0.85, rx * 0.21, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
-
-  // 身体装饰（在球后）
-  drawBodyDeco(ctx, cx + wobble, cy + bounceY, rx, ry, c, t);
 
   // 球体
   const mid = c.gradientMid / 100;
@@ -212,9 +245,6 @@ export function drawPet(ctx: CanvasRenderingContext2D, c: BallPetConfig, size: n
   ctx.textBaseline = "middle";
   const fsize = (size * 0.085) * (c.faceSize / 100);
   ctx.font = `700 ${fsize}px "PingFang SC","Microsoft YaHei",sans-serif`;
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = "rgba(0,0,0,0.22)";
-  ctx.strokeText(text, cx + wobble, cy + bounceY + 4);
   ctx.fillStyle = "#3D2B3D";
   ctx.fillText(text, cx + wobble, cy + bounceY + 4);
   ctx.restore();
@@ -284,6 +314,119 @@ function drawHeadwear(ctx: CanvasRenderingContext2D, cx: number, cy: number, siz
         ctx.fillStyle = hexToRgba("#FFB7C5", 0.6);
         ctx.beginPath();
         ctx.ellipse(0, 0, eW * 0.55, eH * 0.4, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+      break;
+    }
+    case "dogEars": {
+      const eW = size * 0.22, eH = size * 0.5;
+      [{ x: cx - size * 0.42, rot: -0.2 }, { x: cx + size * 0.42, rot: 0.2 }].forEach(p => {
+        ctx.save();
+        ctx.translate(p.x, cy + eH * 0.15);
+        ctx.rotate(p.rot);
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(-eW, eH * 0.3);
+        ctx.quadraticCurveTo(-eW * 0.8, -eH * 0.7, 0, -eH);
+        ctx.quadraticCurveTo(eW * 0.8, -eH * 0.7, eW, eH * 0.3);
+        ctx.quadraticCurveTo(0, eH * 0.15, -eW, eH * 0.3);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(0,0,0,0.15)";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.fillStyle = hexToRgba("#FFB7C5", 0.5);
+        ctx.beginPath();
+        ctx.moveTo(-eW * 0.4, eH * 0.2);
+        ctx.quadraticCurveTo(-eW * 0.3, -eH * 0.4, 0, -eH * 0.65);
+        ctx.quadraticCurveTo(eW * 0.3, -eH * 0.4, eW * 0.4, eH * 0.2);
+        ctx.quadraticCurveTo(0, eH * 0.08, -eW * 0.4, eH * 0.2);
+        ctx.fill();
+        ctx.restore();
+      });
+      break;
+    }
+    case "bearEars": {
+      const r = size * 0.22;
+      [{ x: cx - size * 0.42, y: cy - size * 0.1 }, { x: cx + size * 0.42, y: cy - size * 0.1 }].forEach(p => {
+        ctx.save();
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(0,0,0,0.15)";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.fillStyle = shadeColor(color, -15);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y + r * 0.1, r * 0.55, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+      break;
+    }
+    case "foxEars": {
+      const eW = size * 0.24, eH = size * 0.55;
+      [{ x: cx - size * 0.45, rot: -0.15 }, { x: cx + size * 0.45, rot: 0.15 }].forEach(p => {
+        ctx.save();
+        ctx.translate(p.x, cy + eH * 0.1);
+        ctx.rotate(p.rot);
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(-eW, eH * 0.35);
+        ctx.lineTo(0, -eH);
+        ctx.lineTo(eW, eH * 0.35);
+        ctx.quadraticCurveTo(0, eH * 0.15, -eW, eH * 0.35);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(0,0,0,0.15)";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.fillStyle = "#FFF0F3";
+        ctx.beginPath();
+        ctx.moveTo(-eW * 0.35, eH * 0.25);
+        ctx.lineTo(0, -eH * 0.6);
+        ctx.lineTo(eW * 0.35, eH * 0.25);
+        ctx.quadraticCurveTo(0, eH * 0.08, -eW * 0.35, eH * 0.25);
+        ctx.fill();
+        ctx.restore();
+      });
+      break;
+    }
+    case "deerEars": {
+      const eW = size * 0.18, eH = size * 0.45;
+      [{ x: cx - size * 0.4, rot: -0.25 }, { x: cx + size * 0.4, rot: 0.25 }].forEach(p => {
+        ctx.save();
+        ctx.translate(p.x, cy + eH * 0.05);
+        ctx.rotate(p.rot);
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.ellipse(0, -eH * 0.1, eW, eH * 0.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(0,0,0,0.15)";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.fillStyle = hexToRgba("#FFB7C5", 0.5);
+        ctx.beginPath();
+        ctx.ellipse(0, -eH * 0.1, eW * 0.55, eH * 0.38, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+      break;
+    }
+    case "pandaEars": {
+      const r = size * 0.2;
+      [{ x: cx - size * 0.42, y: cy - size * 0.08 }, { x: cx + size * 0.42, y: cy - size * 0.08 }].forEach(p => {
+        ctx.save();
+        ctx.fillStyle = "#2D2030";
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(0,0,0,0.2)";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.fillStyle = shadeColor("#2D2030", 20);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y + r * 0.1, r * 0.5, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
       });
@@ -593,119 +736,6 @@ function drawAccessory(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx
   });
 }
 
-// === 身体装饰 ===
-function drawBodyDeco(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number, ry: number, c: BallPetConfig, t: number) {
-  if (c.bodyDeco === "none") return;
-  const color = c.bodyDecoColor;
-  switch (c.bodyDeco) {
-    case "catTail": {
-      const wave = Math.sin(t * 2) * 0.2;
-      ctx.save();
-      ctx.translate(cx + rx * 0.9, cy + ry * 0.2);
-      ctx.strokeStyle = color;
-      ctx.lineWidth = rx * 0.18;
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.quadraticCurveTo(rx * 0.5, -ry * 0.3 + wave * 20, rx * 0.6, -ry * 0.8 + wave * 30);
-      ctx.stroke();
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.arc(rx * 0.6, -ry * 0.8 + wave * 30, rx * 0.1, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-      break;
-    }
-    case "bunnyTail":
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.arc(cx + rx * 0.95, cy + ry * 0.3, rx * 0.2, 0, Math.PI * 2);
-      ctx.fill();
-      break;
-    case "foxTail": {
-      const wave = Math.sin(t * 2) * 0.15;
-      ctx.save();
-      ctx.translate(cx + rx * 0.85, cy + ry * 0.2);
-      ctx.rotate(0.3 + wave);
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.quadraticCurveTo(rx * 0.8, -ry * 0.2, rx * 0.9, -ry * 0.9);
-      ctx.quadraticCurveTo(rx * 0.4, -ry * 0.6, 0, 0);
-      ctx.fill();
-      ctx.fillStyle = "#FFFFFF";
-      ctx.beginPath();
-      ctx.ellipse(rx * 0.85, -ry * 0.8, rx * 0.15, ry * 0.15, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-      break;
-    }
-    case "wings": {
-      const flap = Math.sin(t * 4) * 0.2;
-      ["left", "right"].forEach(side => {
-        const d = side === "left" ? -1 : 1;
-        ctx.save();
-        ctx.translate(cx + d * rx * 0.4, cy - ry * 0.1);
-        ctx.rotate(d * (0.3 + flap));
-        ctx.fillStyle = hexToRgba(color, 0.85);
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.quadraticCurveTo(d * rx * 0.8, -ry * 0.5, d * rx * 0.9, ry * 0.1);
-        ctx.quadraticCurveTo(d * rx * 0.5, ry * 0.3, 0, 0);
-        ctx.fill();
-        ctx.restore();
-      });
-      break;
-    }
-    case "cape": {
-      const wave = Math.sin(t * 2) * 4;
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.moveTo(cx - rx * 0.7, cy - ry * 0.3);
-      ctx.lineTo(cx + rx * 0.7, cy - ry * 0.3);
-      ctx.quadraticCurveTo(cx + rx * 0.9 + wave, cy + ry * 0.5, cx + rx * 0.5, cy + ry * 0.9 + wave);
-      ctx.lineTo(cx - rx * 0.5, cy + ry * 0.9 + wave);
-      ctx.quadraticCurveTo(cx - rx * 0.9 - wave, cy + ry * 0.5, cx - rx * 0.7, cy - ry * 0.3);
-      ctx.closePath();
-      ctx.fill();
-      break;
-    }
-    case "scarf": {
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.ellipse(cx, cy - ry * 0.1, rx * 0.9, ry * 0.18, 0, 0, Math.PI * 2);
-      ctx.fill();
-      const wave = Math.sin(t * 2) * 3;
-      ctx.fillStyle = shadeColor(color, -10);
-      ctx.beginPath();
-      ctx.moveTo(cx + rx * 0.5, cy - ry * 0.05);
-      ctx.lineTo(cx + rx * 0.8 + wave, cy + ry * 0.5);
-      ctx.lineTo(cx + rx * 0.7 + wave, cy + ry * 0.55);
-      ctx.lineTo(cx + rx * 0.4, cy);
-      ctx.closePath();
-      ctx.fill();
-      break;
-    }
-    case "bowtie": {
-      const w = rx * 0.35, h = ry * 0.2;
-      ctx.save();
-      ctx.translate(cx, cy + ry * 0.55);
-      ctx.fillStyle = color;
-      [[-1], [1]].forEach(([d]) => {
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.quadraticCurveTo(d * w, -h, d * w, 0);
-        ctx.quadraticCurveTo(d * w, h, 0, 0);
-        ctx.fill();
-      });
-      ctx.fillStyle = shadeColor(color, -15);
-      ctx.fillRect(-w * 0.15, -h * 0.5, w * 0.3, h);
-      ctx.restore();
-      break;
-    }
-  }
-}
-
 // ============ 主组件 ============
 
 interface PetAppProps {
@@ -739,6 +769,7 @@ export default function PetApp({ onBack }: PetAppProps) {
     setConfig(prev => {
       const next = { ...prev, ...patch };
       try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch {}
+      window.dispatchEvent(new CustomEvent("pet-config-updated", { detail: { key: storageKey, config: next } }));
       return next;
     });
   }, [storageKey]);
@@ -746,6 +777,7 @@ export default function PetApp({ onBack }: PetAppProps) {
   const reset = useCallback(() => {
     setConfig({ ...DEFAULT_PET_CONFIG });
     try { localStorage.removeItem(storageKey); } catch {}
+    window.dispatchEvent(new CustomEvent("pet-config-updated", { detail: { key: storageKey, config: DEFAULT_PET_CONFIG } }));
   }, [storageKey]);
 
   if (!conv) return null;
@@ -754,12 +786,12 @@ export default function PetApp({ onBack }: PetAppProps) {
     <div className="flex h-full flex-col">
       <AppHeader title={`○ 宠物（${conv.name}）`} onBack={onBack} />
       <div className="fancy-scroll flex-1 overflow-y-auto px-3 py-3">
-        {/* 预览画布 */}
+        {/* 预览画布（sticky 实时预览，滚动装饰时始终可见） */}
         <div
-          className="mb-3 flex items-center justify-center rounded-2xl py-3"
-          style={{ background: "color-mix(in srgb, var(--accent) 8%, transparent)" }}
+          className="sticky top-0 z-10 mb-3 flex items-center justify-center rounded-2xl py-2 backdrop-blur-sm"
+          style={{ background: "color-mix(in srgb, var(--accent) 12%, transparent)" }}
         >
-          <PetCanvas config={config} size={180} />
+          <PetCanvas config={config} size={120} />
         </div>
 
         {/* 主题快选 */}
@@ -871,12 +903,6 @@ export default function PetApp({ onBack }: PetAppProps) {
         <Section title="✨ 身边飘浮">
           <DecoGrid list={ACCESSORY_LIST} current={config.accessory} onPick={(id) => update({ accessory: id })} />
           <ColorRow value={config.accessoryColor} onPick={(c) => update({ accessoryColor: c })} />
-        </Section>
-
-        {/* 身体装饰 */}
-        <Section title="🦊 身体装饰">
-          <DecoGrid list={BODY_DECO_LIST} current={config.bodyDeco} onPick={(id) => update({ bodyDeco: id })} />
-          <ColorRow value={config.bodyDecoColor} onPick={(c) => update({ bodyDecoColor: c })} />
         </Section>
 
         {/* 动效 */}

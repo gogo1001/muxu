@@ -2,6 +2,71 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useAppStore } from "@/store/app";
 import type { Message, Contact, TomatoThrow, ViewSide } from "@/types";
 import { Music, Play, Pause, Reply, RotateCcw, Trash2 } from "lucide-react";
+import { PetCanvas } from "./phone/apps/PetApp";
+import { DEFAULT_PET_CONFIG, type BallPetConfig } from "@/types/pet";
+
+function HiddenPetPart({ part, side }: { part: "ear" | "top" | "accessory"; side: "left" | "right" }) {
+  const convId = useAppStore((s) => s.activeConversationId);
+  const [config, setConfig] = useState<BallPetConfig>(DEFAULT_PET_CONFIG);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(`muxu-pet-${convId}`);
+      if (saved) setConfig({ ...DEFAULT_PET_CONFIG, ...JSON.parse(saved) });
+      else setConfig({ ...DEFAULT_PET_CONFIG });
+    } catch { setConfig({ ...DEFAULT_PET_CONFIG }); }
+  }, [convId]);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const evt = e as CustomEvent;
+      if (evt.detail?.key === `muxu-pet-${convId}` && evt.detail?.config) {
+        setConfig({ ...DEFAULT_PET_CONFIG, ...evt.detail.config });
+      }
+    };
+    window.addEventListener("pet-config-updated", handler);
+    return () => window.removeEventListener("pet-config-updated", handler);
+  }, [convId]);
+
+  const staticConfig = useMemo(() => ({
+    ...config,
+    breathe: false,
+    wobble: false,
+    bounce: false,
+    blink: false,
+  }), [config]);
+
+  const petSize = 60;
+  let clipStyle: React.CSSProperties = { overflow: "hidden" };
+  let flip = false;
+  let petOffset = -10;
+
+  if (part === "ear") {
+    clipStyle = { ...clipStyle, height: petSize * 0.28, width: petSize };
+    flip = side === "left";
+    petOffset = -24;
+  } else if (part === "top") {
+    clipStyle = { ...clipStyle, height: petSize * 0.33, width: petSize };
+    flip = side === "left";
+    petOffset = -18;
+  } else {
+    clipStyle = { ...clipStyle, height: petSize * 0.22, width: petSize * 0.32 };
+    if (side === "left") {
+      clipStyle = { ...clipStyle, marginLeft: 0 };
+    } else {
+      clipStyle = { ...clipStyle, marginLeft: petSize * 0.68 };
+    }
+    petOffset = -12;
+  }
+
+  return (
+    <div style={{ ...clipStyle, transform: flip ? "scaleX(-1)" : "none" }}>
+      <div style={{ marginTop: `${petOffset}px` }}>
+        <PetCanvas config={staticConfig} size={petSize} patSignal={0} />
+      </div>
+    </div>
+  );
+}
 
 export default function MessageList() {
   const conversations = useAppStore((s) => s.conversations);
@@ -16,6 +81,10 @@ export default function MessageList() {
   const deleteMessage = useAppStore((s) => s.deleteMessage);
   const throwTomato = useAppStore((s) => s.throwTomato);
   const tomatoThrows = useAppStore((s) => s.tomatoThrows);
+  const findPet = useAppStore((s) => s.findPet);
+  const petHidingMode = useAppStore((s) => s.petHidingMode);
+  const setPetHidingMode = useAppStore((s) => s.setPetHidingMode);
+  const hidePetAtMessage = useAppStore((s) => s.hidePetAtMessage);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [contextMenu, setContextMenu] = useState<{ messageId: string; x: number; y: number; sender: string } | null>(null);
   const [tomatoPicker, setTomatoPicker] = useState<{ senderId: string; msgId: string; x: number; y: number } | null>(null);
@@ -230,7 +299,25 @@ export default function MessageList() {
     <div
       ref={scrollRef}
       className="chat-bg fancy-scroll flex-1 overflow-y-auto px-4 py-6 md:px-8"
+      onClick={petHidingMode ? () => {} : undefined}
     >
+      {petHidingMode && (
+        <div
+          className="sticky top-0 z-30 mx-auto mb-3 flex max-w-3xl items-center justify-between rounded-xl px-4 py-2"
+          style={{ background: "color-mix(in srgb, var(--accent) 15%, var(--card))", backdropFilter: "blur(8px)" }}
+        >
+          <span className="text-xs font-medium" style={{ color: "var(--text)" }}>
+            点击任意消息，把宠物藏在后面～🐾
+          </span>
+          <button
+            className="rounded-lg px-3 py-1 text-xs font-medium"
+            style={{ background: "var(--card)", color: "var(--text-soft)", border: "1px solid var(--card-border)" }}
+            onClick={(e) => { e.stopPropagation(); setPetHidingMode(false); }}
+          >
+            取消
+          </button>
+        </div>
+      )}
       <div className="mx-auto flex max-w-3xl flex-col gap-4">
         {messages.map((m, i) => {
           const prev = messages[i - 1];
@@ -304,13 +391,18 @@ export default function MessageList() {
           }
 
           return (
-            <div key={m.id} className={`flex items-center gap-2 ${isLeft ? "justify-start" : "justify-end"}`}
+            <div key={m.id} className={`relative flex items-center gap-2 ${isLeft ? "justify-start" : "justify-end"}`}
               data-msg-id={m.id}
               data-sender={m.sender}
               onContextMenu={(e) => handleLongPress(e, m.id, m.sender)}
               onTouchStart={() => handleTouchStart(m.id, m.sender)}
               onTouchEnd={handleTouchEnd}
               onTouchMove={handleTouchEnd}
+              onClick={petHidingMode ? (e) => {
+                e.stopPropagation();
+                hidePetAtMessage(activeConversationId, m.id, isLeft ? "left" : "right");
+              } : undefined}
+              style={petHidingMode ? { cursor: "pointer" } : undefined}
             >
               {isLeft && (
                 <div className="flex w-9 shrink-0 justify-center">
@@ -331,7 +423,7 @@ export default function MessageList() {
               <div className={`flex flex-col ${isLeft ? "items-start" : "items-end"} max-w-[78%]`}>
                 {isLeft && m.sender !== "me" && (
                   <span
-                    className="mb-0.5 px-1 text-xs cursor-pointer select-none active:opacity-60 flex items-center gap-1"
+                    className="mb-0.5 px-1 text-xs cursor-pointer select-none active:opacity-60 flex items-center gap-1 relative z-10"
                     style={{ color: "color-mix(in srgb, var(--text) 60%, transparent)" }}
                     onDoubleClick={(e) => showTomatoPicker(m.sender, m.id, e.clientX, e.clientY)}
                     title="双击扔番茄"
@@ -342,13 +434,34 @@ export default function MessageList() {
                     {getContactName(m.sender)}
                   </span>
                 )}
-                <MessageBubble
-                  message={m}
-                  side={side}
-                  bubbleStyle={bubbleStyle}
-                  renderTextWithMention={renderTextWithMention}
-                  isNew={isNew}
-                />
+                <div className="relative">
+                  {beauty.petEnabled && conv?.type !== "group" && conv?.petHidden?.messageId === m.id && (
+                    <button
+                      className="absolute z-20 cursor-pointer overflow-visible p-0 transition hover:scale-110 active:scale-95"
+                      style={{
+                        top: "-10px",
+                        [conv.petHidden.side === "left" ? "left" : "right"]: "8px",
+                        background: "transparent",
+                        border: "none",
+                        lineHeight: 0,
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        findPet(activeConversationId, "me");
+                      }}
+                      title="找到宠物了！"
+                    >
+                      <HiddenPetPart part={conv.petHidden.part} side={conv.petHidden.side} />
+                    </button>
+                  )}
+                  <MessageBubble
+                    message={m}
+                    side={side}
+                    bubbleStyle={bubbleStyle}
+                    renderTextWithMention={renderTextWithMention}
+                    isNew={isNew}
+                  />
+                </div>
               </div>
               {!isLeft && (
                 <div className="flex w-9 shrink-0 justify-center">
@@ -502,6 +615,7 @@ function MessageAvatar({
   const dim = size === "sm" ? "h-[36px] w-[36px] text-[12px]" : "h-[36px] w-[36px] text-[12px]";
   const bgVar = senderId === "me" ? "var(--accent)" : "var(--text)";
   const textVar = "var(--card)";
+  const pressTimer = useRef<number | undefined>(undefined);
 
   const handleDoubleClick = () => {
     if (senderId !== "me" && onPat) {
@@ -514,7 +628,28 @@ function MessageAvatar({
   const handleContextMenu = (_e: React.MouseEvent) => {
   };
 
-  const longPressTitle = "双击拍一拍";
+  // 我的头像：长按 400ms 派发事件 → DesktopPet 显示小手
+  const pressStart = useRef<{ x: number; y: number } | null>(null);
+  const startMyLongPress = (x: number, y: number) => {
+    pressStart.current = { x, y };
+    if (pressTimer.current) window.clearTimeout(pressTimer.current);
+    pressTimer.current = window.setTimeout(() => {
+      pressStart.current = null; // 已触发，后续移动不再取消
+      window.dispatchEvent(new CustomEvent("avatar-longpress", { detail: { x, y } }));
+    }, 400);
+  };
+  const cancelMyLongPress = () => {
+    if (pressTimer.current) { window.clearTimeout(pressTimer.current); pressTimer.current = undefined; }
+    pressStart.current = null;
+  };
+  // 手指移动超过阈值才取消（避免手机按压抖动误取消长按）
+  const onMyTouchMove = (x: number, y: number) => {
+    const s = pressStart.current;
+    if (!s) return; // 未开始或已触发
+    if (Math.abs(x - s.x) > 10 || Math.abs(y - s.y) > 10) cancelMyLongPress();
+  };
+
+  const longPressTitle = senderId === "me" ? "长按摸摸小宠物" : "双击拍一拍";
 
   const avatarEl = avatarImage ? (
     <div
@@ -522,23 +657,48 @@ function MessageAvatar({
       className={`shrink-0 overflow-hidden rounded-lg select-none cursor-pointer transition-transform active:scale-95 ${dim} ${isPating ? "animate-bounce" : ""}`}
       style={{ boxShadow: "0 1px 2px rgba(0,0,0,0.15)" }}
       onDoubleClick={handleDoubleClick}
-      onContextMenu={handleContextMenu}
+      onContextMenu={(e) => {
+        if (senderId === "me") e.stopPropagation();
+        handleContextMenu(e);
+      }}
       onTouchStart={(e) => {
-        if (e.touches.length === 1 && senderId !== "me") {
-          onSwipeStart?.(senderId, msgId || "", e.touches[0].clientX, e.touches[0].clientY);
+        if (e.touches.length === 1) {
+          if (senderId === "me") {
+            e.stopPropagation();
+            startMyLongPress(e.touches[0].clientX, e.touches[0].clientY);
+          } else {
+            onSwipeStart?.(senderId, msgId || "", e.touches[0].clientX, e.touches[0].clientY);
+          }
         }
       }}
       onTouchMove={(e) => {
-        if (e.touches.length === 1 && senderId !== "me") {
-          onSwipeMove?.(e.touches[0].clientX, e.touches[0].clientY);
+        if (e.touches.length === 1) {
+          if (senderId === "me") {
+            e.stopPropagation();
+            onMyTouchMove(e.touches[0].clientX, e.touches[0].clientY);
+          } else {
+            onSwipeMove?.(e.touches[0].clientX, e.touches[0].clientY);
+          }
         }
       }}
-      onTouchEnd={onSwipeEnd}
+      onTouchEnd={(e) => {
+        if (senderId === "me") { e.stopPropagation(); cancelMyLongPress(); }
+        else onSwipeEnd?.();
+      }}
+      onTouchCancel={(e) => {
+        if (senderId === "me") { e.stopPropagation(); cancelMyLongPress(); }
+        else onSwipeEnd?.();
+      }}
       onMouseDown={(e) => {
-        if (senderId !== "me") {
+        if (senderId === "me") {
+          e.stopPropagation();
+          startMyLongPress(e.clientX, e.clientY);
+        } else {
           onAvatarMouseDown?.(senderId, msgId || "", e.clientX, e.clientY);
         }
       }}
+      onMouseUp={senderId === "me" ? cancelMyLongPress : undefined}
+      onMouseLeave={senderId === "me" ? cancelMyLongPress : undefined}
       title={longPressTitle}
     >
       <img src={avatarImage} alt="avatar" className="h-full w-full object-cover" />
@@ -553,23 +713,48 @@ function MessageAvatar({
         boxShadow: "0 1px 2px rgba(0,0,0,0.15)",
       }}
       onDoubleClick={handleDoubleClick}
-      onContextMenu={handleContextMenu}
+      onContextMenu={(e) => {
+        if (senderId === "me") e.stopPropagation();
+        handleContextMenu(e);
+      }}
       onTouchStart={(e) => {
-        if (e.touches.length === 1 && senderId !== "me") {
-          onSwipeStart?.(senderId, msgId || "", e.touches[0].clientX, e.touches[0].clientY);
+        if (e.touches.length === 1) {
+          if (senderId === "me") {
+            e.stopPropagation();
+            startMyLongPress(e.touches[0].clientX, e.touches[0].clientY);
+          } else {
+            onSwipeStart?.(senderId, msgId || "", e.touches[0].clientX, e.touches[0].clientY);
+          }
         }
       }}
       onTouchMove={(e) => {
-        if (e.touches.length === 1 && senderId !== "me") {
-          onSwipeMove?.(e.touches[0].clientX, e.touches[0].clientY);
+        if (e.touches.length === 1) {
+          if (senderId === "me") {
+            e.stopPropagation();
+            onMyTouchMove(e.touches[0].clientX, e.touches[0].clientY);
+          } else {
+            onSwipeMove?.(e.touches[0].clientX, e.touches[0].clientY);
+          }
         }
       }}
-      onTouchEnd={onSwipeEnd}
+      onTouchEnd={(e) => {
+        if (senderId === "me") { e.stopPropagation(); cancelMyLongPress(); }
+        else onSwipeEnd?.();
+      }}
+      onTouchCancel={(e) => {
+        if (senderId === "me") { e.stopPropagation(); cancelMyLongPress(); }
+        else onSwipeEnd?.();
+      }}
       onMouseDown={(e) => {
-        if (senderId !== "me") {
+        if (senderId === "me") {
+          e.stopPropagation();
+          startMyLongPress(e.clientX, e.clientY);
+        } else {
           onAvatarMouseDown?.(senderId, msgId || "", e.clientX, e.clientY);
         }
       }}
+      onMouseUp={senderId === "me" ? cancelMyLongPress : undefined}
+      onMouseLeave={senderId === "me" ? cancelMyLongPress : undefined}
       title={longPressTitle}
     >
       {avatarText}

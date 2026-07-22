@@ -155,4 +155,10 @@ export interface Conversation {
   myAvatarImage?: string;
   herAvatarText?: string;
   herAvatarImage?: string;
+  petHidden?: {
+    messageId: string;
+    side: "left" | "right";
+    part: "ear" | "top" | "accessory";
+    hiddenAt: number;
+  } | null;
 }

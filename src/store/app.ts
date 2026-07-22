@@ -114,6 +114,14 @@ interface ConversationStore {
   throwTomato: (conversationId: string, throwerId: string, targetId: string, targetMsgId?: string, auto?: boolean, count?: number) => void;
   removeTomatoThrow: (tomatoId: string) => void;
   sendGroupListenTogether: (conversationId: string, songIndex?: number) => void;
+  patPet: (conversationId: string, by: "me" | "her") => void;
+  hidePet: (conversationId: string, messageId: string, side: "left" | "right", part: "ear" | "top" | "accessory") => void;
+  hidePetManually: (conversationId: string) => void;
+  hidePetAtMessage: (conversationId: string, messageId: string, side: "left" | "right") => void;
+  findPet: (conversationId: string, by: "me" | "her") => void;
+  missPet: (conversationId: string) => void;
+  petHidingMode: boolean;
+  setPetHidingMode: (on: boolean) => void;
 }
 
 interface BottleData {
@@ -419,7 +427,22 @@ export const useAppStore = create<
       driftBottles: [],
       bottleData: {},
       driftBottleOpen: false,
-      setDriftBottleOpen: (v: boolean) => set({ driftBottleOpen: v }),
+      setDriftBottleOpen: (v: boolean) => {
+        if (v) {
+          // 打开时确保当前联系人的漂流瓶数据已初始化
+          const st = get();
+          const activeConv = st.conversations.find((c) => c.id === st.activeConversationId);
+          const cid = activeConv?.type === "private" && activeConv.memberIds.length > 0
+            ? activeConv.memberIds[0]
+            : st.contacts[0]?.id;
+          if (cid && !st.bottleData[cid]) {
+            set((s) => ({
+              bottleData: { ...s.bottleData, [cid]: createDefaultBottleData() },
+            }));
+          }
+        }
+        set({ driftBottleOpen: v });
+      },
       getActiveBottleContactId: () => {
         const st = get();
         const activeConv = st.conversations.find((c) => c.id === st.activeConversationId);
@@ -437,6 +460,8 @@ export const useAppStore = create<
       incomingCall: null,
       floatingPhone: false,
       floatingPhoneContactId: null,
+      petHidingMode: false,
+      setPetHidingMode: (on) => set({ petHidingMode: on }),
       activeCall: null,
       activeCallDuration: 0,
       callModalOpen: false,
@@ -1368,6 +1393,13 @@ export const useAppStore = create<
           ),
         }));
 
+        // 5% 概率宠物躲起来
+        if (conv.type === "private" && !conv.petHidden && Math.random() < 0.05) {
+          const parts: ("ear" | "top" | "accessory")[] = ["ear", "top", "accessory"];
+          const part = parts[Math.floor(Math.random() * parts.length)];
+          get().hidePet(conversationId, myMsg.id, "right", part);
+        }
+
         const { replySpeedMin, replySpeedMax, waterReminder } = get().chat;
         const myName = get().beauty.myName;
 
@@ -1395,7 +1427,7 @@ export const useAppStore = create<
 
           const sendNextReply = (index: number) => {
             if (index >= replyCount) {
-              if (Math.random() < 0.05) {
+              if (Math.random() < 0.02) {
                 const state = get();
                 const contact = state.contacts.find((c) => c.id === contactId);
                 if (contact && !state.incomingCall && !state.activeCall) {
@@ -1528,6 +1560,18 @@ export const useAppStore = create<
                   ),
                 };
               });
+
+              // 对方 40% 概率找到躲起来的宠物
+              if (index === 0 && state.conversations.find(c => c.id === conversationId)?.petHidden) {
+                const findDelay = randRange(800, 2000);
+                window.setTimeout(() => {
+                  if (Math.random() < 0.4) {
+                    get().findPet(conversationId, "her");
+                  } else {
+                    get().missPet(conversationId);
+                  }
+                }, findDelay);
+              }
 
               // 对方随机撤回（3%概率，撤回刚发的消息）
               if (Math.random() < 0.03) {
@@ -2109,6 +2153,132 @@ export const useAppStore = create<
             }));
           }, delay);
         });
+      },
+
+      patPet: (conversationId, by) => {
+        const conv = get().conversations.find((c) => c.id === conversationId);
+        if (!conv) return;
+        const myName = get().beauty.myName;
+        const contactId = conv.type === "private" ? conv.memberIds[0] : (get().contacts[0]?.id || "");
+        const herName = get().contacts.find((c) => c.id === contactId)?.name || "对方";
+        const sysMsg: Message = {
+          id: uid("sys"),
+          sender: "system",
+          type: "system",
+          systemText: by === "her"
+            ? `${herName} 摸了摸你的小宠物 🐾`
+            : `${myName} 摸了摸小宠物 💕`,
+          timestamp: Date.now(),
+        };
+        set((s) => ({
+          conversations: s.conversations.map((c) =>
+            c.id === conversationId
+              ? { ...c, messages: [...c.messages, sysMsg] }
+              : c
+          ),
+        }));
+      },
+
+      hidePet: (conversationId, messageId, side, part) => {
+        set((s) => ({
+          conversations: s.conversations.map((c) =>
+            c.id === conversationId
+              ? { ...c, petHidden: { messageId, side, part, hiddenAt: Date.now() } }
+              : c
+          ),
+        }));
+      },
+
+      hidePetManually: (conversationId) => {
+        const conv = get().conversations.find((c) => c.id === conversationId);
+        if (!conv || conv.petHidden) return;
+        const myMsgs = conv.messages.filter((m) => m.sender === "me" && !m.recalled);
+        if (myMsgs.length === 0) return;
+        const targetMsg = myMsgs[myMsgs.length - 1];
+        const parts: ("ear" | "top" | "accessory")[] = ["ear", "top", "accessory"];
+        const part = parts[Math.floor(Math.random() * parts.length)];
+        const sysMsg: Message = {
+          id: uid("sys"),
+          sender: "system",
+          type: "system",
+          systemText: "你把小宠物藏了起来，等对方来找～🐾",
+          timestamp: Date.now(),
+        };
+        set((s) => ({
+          conversations: s.conversations.map((c) =>
+            c.id === conversationId
+              ? { ...c, petHidden: { messageId: targetMsg.id, side: "right", part, hiddenAt: Date.now() }, messages: [...c.messages, sysMsg] }
+              : c
+          ),
+          petHidingMode: false,
+        }));
+      },
+
+      hidePetAtMessage: (conversationId, messageId, side) => {
+        const conv = get().conversations.find((c) => c.id === conversationId);
+        if (!conv || conv.petHidden) return;
+        const parts: ("ear" | "top" | "accessory")[] = ["ear", "top", "accessory"];
+        const part = parts[Math.floor(Math.random() * parts.length)];
+        const sysMsg: Message = {
+          id: uid("sys"),
+          sender: "system",
+          type: "system",
+          systemText: "你把小宠物藏了起来，等对方来找～🐾",
+          timestamp: Date.now(),
+        };
+        set((s) => ({
+          conversations: s.conversations.map((c) =>
+            c.id === conversationId
+              ? { ...c, petHidden: { messageId, side, part, hiddenAt: Date.now() }, messages: [...c.messages, sysMsg] }
+              : c
+          ),
+          petHidingMode: false,
+        }));
+      },
+
+      findPet: (conversationId, by) => {
+        const conv = get().conversations.find((c) => c.id === conversationId);
+        if (!conv || !conv.petHidden) return;
+        const myName = get().beauty.myName;
+        const contactId = conv.type === "private" ? conv.memberIds[0] : (get().contacts[0]?.id || "");
+        const herName = get().contacts.find((c) => c.id === contactId)?.name || "对方";
+        const sysMsg: Message = {
+          id: uid("sys"),
+          sender: "system",
+          type: "system",
+          systemText: by === "her"
+            ? `${herName} 找到了躲起来的小宠物！🔍🐾`
+            : `你找到了躲起来的小宠物！🎉`,
+          timestamp: Date.now(),
+        };
+        set((s) => ({
+          conversations: s.conversations.map((c) =>
+            c.id === conversationId
+              ? { ...c, petHidden: null, messages: [...c.messages, sysMsg] }
+              : c
+          ),
+        }));
+      },
+
+      missPet: (conversationId) => {
+        const conv = get().conversations.find((c) => c.id === conversationId);
+        if (!conv || !conv.petHidden) return;
+        const contactId = conv.type === "private" ? conv.memberIds[0] : (get().contacts[0]?.id || "");
+        const herName = get().contacts.find((c) => c.id === contactId)?.name || "对方";
+        const sysMsg: Message = {
+          id: uid("sys"),
+          sender: "system",
+          type: "system",
+          systemText: `${herName} 找了一下，但没发现小宠物的踪影…🙈 小宠物自己跑出来啦～`,
+          timestamp: Date.now(),
+        };
+        set((s) => ({
+          conversations: s.conversations.map((c) =>
+            c.id === conversationId
+              ? { ...c, petHidden: null, messages: [...c.messages, sysMsg] }
+              : c
+          ),
+        }));
       },
 
       sendRPS: (conversationId, targetId, myChoice) => {

@@ -328,6 +328,23 @@ export default function BeautyPanel() {
         <ConversationAvatarEditor />
       </Section>
 
+      {/* 宠物设置 */}
+      <Section title="🐾 桌面宠物">
+        <label className="flex items-center justify-between rounded-lg border p-3" style={{ borderColor: "var(--card-border)", background: "var(--card)" }}>
+          <div>
+            <div className="text-[13px]" style={{ color: "var(--text)" }}>开启桌面宠物</div>
+            <div className="text-[11px]" style={{ color: "var(--text-soft)" }}>关闭后宠物将不再显示</div>
+          </div>
+          <input
+            type="checkbox"
+            checked={beauty.petEnabled}
+            onChange={(e) => setBeauty({ petEnabled: e.target.checked })}
+            className="h-5 w-5"
+            style={{ accentColor: "var(--accent)" }}
+          />
+        </label>
+      </Section>
+
       {/* 重置 */}
       <button
         onClick={resetBeauty}

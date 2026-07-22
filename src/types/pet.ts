@@ -16,8 +16,6 @@ export interface BallPetConfig {
   headwearColor: string;
   accessory: string;
   accessoryColor: string;
-  bodyDeco: string;
-  bodyDecoColor: string;
   breathe: boolean;
   wobble: boolean;
   blink: boolean;
@@ -42,8 +40,6 @@ export const DEFAULT_PET_CONFIG: BallPetConfig = {
   headwearColor: "#FF9EB3",
   accessory: "none",
   accessoryColor: "#FFE08A",
-  bodyDeco: "none",
-  bodyDecoColor: "#FF9EB3",
   breathe: true,
   wobble: true,
   blink: true,

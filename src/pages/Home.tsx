@@ -3,6 +3,7 @@ import { useAppStore } from "@/store/app";
 import ChatHeader from "@/components/ChatHeader";
 import InputBar from "@/components/InputBar";
 import MessageList from "@/components/MessageList";
+import DesktopPet from "@/components/DesktopPet";
 import PhoneDrawer from "@/components/PhoneDrawer";
 import SettingsDrawer from "@/components/SettingsDrawer";
 import CaughtModal from "@/components/CaughtModal";
@@ -226,8 +227,11 @@ export default function Home() {
         {loading && <LoadingScreen minDuration={1200} />}
         <ChatHeader />
         <main className="relative flex-1 overflow-hidden">
+        <div className="relative h-full">
           <MessageList />
-        </main>
+          <DesktopPet />
+        </div>
+      </main>
         <PhoneDrawer />
         <SettingsDrawer />
         <CaughtModal />
@@ -243,14 +247,18 @@ export default function Home() {
       <ChatHeader />
 
       <main className="relative flex-1 overflow-hidden">
-        <div key={activeConv.id + "-" + activeConv.view} className="animate-viewFlip flex h-full flex-col">
-          <MessageList />
+        <div key={activeConv.id + "-" + activeConv.view} className="relative flex h-full flex-col">
+          <div className="relative flex flex-1 flex-col overflow-hidden">
+            <MessageList />
+            <DesktopPet />
+          </div>
           {isPrivate && isHer ? (
             <div
               className="border-t px-4 py-4 backdrop-blur md:px-8"
               style={{
                 borderColor: "var(--card-border)",
                 background: "color-mix(in srgb, var(--bg-deep) 60%, transparent)",
+                paddingBottom: "calc(1rem + env(safe-area-inset-bottom))",
               }}
             >
               <div

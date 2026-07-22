@@ -11,6 +11,7 @@ export interface BeautySettings {
   myAvatarImage: string;
   myName: string;
   herName: string;
+  petEnabled: boolean;
 }
 
 // 聊天设置
@@ -38,6 +39,7 @@ export const DEFAULT_BEAUTY: BeautySettings = {
   myAvatarImage: "",
   myName: "我",
   herName: "宝宝",
+  petEnabled: true,
 };
 
 export const DEFAULT_CHAT_SETTINGS: ChatSettings = {
