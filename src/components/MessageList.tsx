@@ -993,13 +993,13 @@ function MessageBubble({
 
   if (message.type === "image" && message.image) {
     return (
-      <div className="flex flex-col items-start max-w-[70%]">
+      <div className={`flex flex-col ${isLeft ? "items-start" : "items-end"}`}>
         <img
           src={message.image}
           alt="image"
           className="animate-bubbleIn rounded-2xl border object-cover"
           style={{
-            maxWidth: "100%",
+            maxWidth: "200px",
             maxHeight: "280px",
             borderColor: "var(--card-border)",
           }}
@@ -1013,10 +1013,10 @@ function MessageBubble({
 
   if (message.type === "sticker") {
     return (
-      <div className={`flex flex-col ${isLeft ? "items-start" : "items-end"} max-w-[70%]`}>
+      <div className={`flex flex-col ${isLeft ? "items-start" : "items-end"}`}>
         {message.moodTag && (
           <span
-            className="mb-1 ml-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px]"
+            className={`mb-1 ${isLeft ? "ml-1" : "mr-1"} inline-flex items-center rounded-full px-2 py-0.5 text-[10px]`}
             style={{
               background: "color-mix(in srgb, var(--accent) 15%, transparent)",
               color: "var(--accent)",
@@ -1030,7 +1030,7 @@ function MessageBubble({
           <img
             src={message.sticker}
             alt="sticker"
-            className="max-h-32 max-w-full animate-bubbleIn rounded-xl object-contain"
+            className="max-h-32 max-w-[180px] animate-bubbleIn rounded-xl object-contain"
           />
         ) : (
           <div
