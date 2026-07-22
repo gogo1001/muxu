@@ -36,27 +36,27 @@ function HiddenPetPart({ part, side }: { part: "ear" | "top" | "accessory"; side
     blink: false,
   }), [config]);
 
-  const petSize = 60;
+  const petSize = 56;
   let clipStyle: React.CSSProperties = { overflow: "hidden" };
   let flip = false;
-  let petOffset = -10;
+  let petOffset = -20;
 
   if (part === "ear") {
-    clipStyle = { ...clipStyle, height: petSize * 0.28, width: petSize };
+    clipStyle = { ...clipStyle, height: petSize * 0.2, width: petSize };
+    flip = side === "left";
+    petOffset = -30;
+  } else if (part === "top") {
+    clipStyle = { ...clipStyle, height: petSize * 0.25, width: petSize };
     flip = side === "left";
     petOffset = -24;
-  } else if (part === "top") {
-    clipStyle = { ...clipStyle, height: petSize * 0.33, width: petSize };
-    flip = side === "left";
-    petOffset = -18;
   } else {
-    clipStyle = { ...clipStyle, height: petSize * 0.22, width: petSize * 0.32 };
+    clipStyle = { ...clipStyle, height: petSize * 0.16, width: petSize * 0.28 };
     if (side === "left") {
       clipStyle = { ...clipStyle, marginLeft: 0 };
     } else {
-      clipStyle = { ...clipStyle, marginLeft: petSize * 0.68 };
+      clipStyle = { ...clipStyle, marginLeft: petSize * 0.72 };
     }
-    petOffset = -12;
+    petOffset = -18;
   }
 
   return (
