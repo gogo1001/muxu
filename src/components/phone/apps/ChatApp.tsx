@@ -1,5 +1,8 @@
+import { useEffect, useState } from "react";
 import { AppHeader } from "./HomeScreen";
+import { PetCanvas } from "./PetApp";
 import { useAppStore } from "@/store/app";
+import { DEFAULT_PET_CONFIG, type BallPetConfig } from "@/types/pet";
 import { Eye } from "lucide-react";
 
 export default function ChatApp({ onBack }: { onBack: () => void }) {
@@ -12,6 +15,17 @@ export default function ChatApp({ onBack }: { onBack: () => void }) {
   const activeConv = conversations.find((c) => c.id === activeConversationId);
   const contactId = activeConv?.type === "private" ? activeConv.memberIds[0] : contacts[0]?.id;
   const contact = contacts.find((c) => c.id === contactId);
+
+  // 本会话独立的宠物配置
+  const [petConfig, setPetConfig] = useState<BallPetConfig>(DEFAULT_PET_CONFIG);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(`muxu-pet-${activeConversationId}`);
+      setPetConfig(saved ? { ...DEFAULT_PET_CONFIG, ...JSON.parse(saved) } : { ...DEFAULT_PET_CONFIG });
+    } catch {
+      setPetConfig({ ...DEFAULT_PET_CONFIG });
+    }
+  }, [activeConversationId]);
 
   if (!activeConv || !contact) return null;
 
@@ -27,6 +41,13 @@ export default function ChatApp({ onBack }: { onBack: () => void }) {
     <div className="flex h-full flex-col">
       <AppHeader title={`和${myName}的聊天`} onBack={onBack} />
       <div className="fancy-scroll flex-1 overflow-y-auto px-3 py-3">
+        {/* 本会话的宠物展示 */}
+        <div
+          className="mb-3 flex items-center justify-center rounded-2xl py-2"
+          style={{ background: "color-mix(in srgb, var(--accent) 8%, transparent)" }}
+        >
+          <PetCanvas config={petConfig} size={120} />
+        </div>
         <div className="flex flex-col gap-3">
           {messages.slice(-30).map((m, i) => {
             const herSide = m.sender === contactId;

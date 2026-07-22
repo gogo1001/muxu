@@ -10,10 +10,11 @@ import PhoneApp from "./apps/PhoneApp";
 import MusicApp from "./apps/MusicApp";
 import WeatherApp from "./apps/WeatherApp";
 import TomatoApp from "./apps/TomatoApp";
+import PetApp from "./apps/PetApp";
 import HomeScreen from "./apps/HomeScreen";
 import { useAppStore } from "@/store/app";
 
-export type PhoneAppId = "home" | "chat" | "body" | "mood" | "work" | "travel" | "meals" | "phone" | "music" | "weather" | "tomato" | "driftbottle";
+export type PhoneAppId = "home" | "chat" | "body" | "mood" | "work" | "travel" | "meals" | "phone" | "music" | "weather" | "tomato" | "driftbottle" | "pet";
 
 // 可爱简约图标（SVG）
 const ChatIcon = ({ color }: { color: string }) => (
@@ -162,6 +163,19 @@ const StarIcon = ({ color }: { color: string }) => (
   </svg>
 );
 
+const PetIcon = ({ color }: { color: string }) => (
+  <svg viewBox="0 0 32 32" className="h-7 w-7">
+    <ellipse cx="16" cy="18" rx="9" ry="8" fill={color} opacity="0.18" />
+    <ellipse cx="16" cy="18" rx="9" ry="8" fill="none" stroke={color} strokeWidth="1.6" />
+    <ellipse cx="13.5" cy="15" rx="2.2" ry="2.6" fill="none" stroke={color} strokeWidth="1.3" />
+    <ellipse cx="18.5" cy="15" rx="2.2" ry="2.6" fill="none" stroke={color} strokeWidth="1.3" />
+    <path d="M14 19c0.8 0.8 3.2 0.8 4 0" stroke={color} strokeWidth="1.3" strokeLinecap="round" fill="none" />
+    <circle cx="11.5" cy="18" r="1.3" fill={color} opacity="0.35" />
+    <circle cx="20.5" cy="18" r="1.3" fill={color} opacity="0.35" />
+    <path d="M9 11c1.5-1.5 3-1.5 4 0M19 11c1.5-1.5 3-1.5 4 0" stroke={color} strokeWidth="1.3" strokeLinecap="round" fill="none" />
+  </svg>
+);
+
 const APPS: { id: PhoneAppId; name: string; Icon: (p: { color: string }) => JSX.Element; color: string }[] = [
   { id: "chat", name: "聊天", Icon: ChatIcon, color: "#3A7CA5" },
   { id: "meals", name: "三餐", Icon: BowlIcon, color: "#FF8A65" },
@@ -173,6 +187,7 @@ const APPS: { id: PhoneAppId; name: string; Icon: (p: { color: string }) => JSX.
   { id: "phone", name: "电话", Icon: PhoneCallIcon, color: "#2ECC71" },
   { id: "music", name: "音乐", Icon: MusicNoteIcon, color: "#E91E63" },
   { id: "tomato", name: "番茄计数器", Icon: TomatoIcon, color: "#FF6B6B" },
+  { id: "pet", name: "○", Icon: PetIcon, color: "#FF9EB3" },
   { id: "driftbottle", name: "漂流瓶", Icon: StarIcon, color: "#0066B3" },
 ];
 
@@ -207,6 +222,7 @@ export default function PhoneTabs() {
         {app === "music" && <MusicApp onBack={() => setApp("home")} />}
         {app === "weather" && <WeatherApp onBack={() => setApp("home")} />}
         {app === "tomato" && <TomatoApp onBack={() => setApp("home")} />}
+        {app === "pet" && <PetApp onBack={() => setApp("home")} />}
       </div>
 
       {/* Home 指示条 */}
