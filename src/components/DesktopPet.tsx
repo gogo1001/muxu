@@ -312,15 +312,13 @@ export default function DesktopPet() {
             className="pointer-events-auto absolute bottom-0 select-none cursor-pointer"
             style={{
               [peeking.side]: 16,
-              transform: `translateY(${peeking.phase === "peeking" ? "0px" : "100%"})`,
+              transform: `translateY(${peeking.phase === "peeking" ? "-8px" : "100%"})`,
               transition: peeking.phase === "hidden" ? "none" : "transform 0.7s cubic-bezier(0.34, 1.56, 0.64, 1)",
             }}
             onClick={handlePeekClick}
           >
-            <div className="overflow-hidden" style={{ height: 28 }}>
-              <div style={{ marginTop: "-10px" }}>
-                <PetCanvas config={petConfig} size={64} patSignal={0} />
-              </div>
+            <div className="overflow-hidden" style={{ height: 38 }}>
+              <PetCanvas config={petConfig} size={64} patSignal={0} />
             </div>
           </div>
         )}

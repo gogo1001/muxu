@@ -36,33 +36,33 @@ function HiddenPetPart({ part, side }: { part: "ear" | "top" | "accessory"; side
     blink: false,
   }), [config]);
 
-  const petSize = 50;
+  const petSize = 60;
   let clipStyle: React.CSSProperties = { overflow: "hidden" };
   let flip = false;
-  let petOffset = 0;
+  let petOffset = -10;
 
   if (part === "ear") {
     clipStyle = { ...clipStyle, height: petSize * 0.28, width: petSize };
     flip = side === "left";
-    petOffset = 0;
+    petOffset = -24;
   } else if (part === "top") {
-    clipStyle = { ...clipStyle, height: petSize * 0.32, width: petSize };
+    clipStyle = { ...clipStyle, height: petSize * 0.33, width: petSize };
     flip = side === "left";
-    petOffset = 0;
+    petOffset = -18;
   } else {
-    clipStyle = { ...clipStyle, height: petSize * 0.2, width: petSize * 0.28 };
+    clipStyle = { ...clipStyle, height: petSize * 0.22, width: petSize * 0.32 };
     if (side === "left") {
       clipStyle = { ...clipStyle, marginLeft: 0 };
     } else {
-      clipStyle = { ...clipStyle, marginLeft: petSize * 0.72 };
+      clipStyle = { ...clipStyle, marginLeft: petSize * 0.68 };
     }
-    petOffset = 0;
+    petOffset = -12;
   }
 
   return (
     <div style={{ ...clipStyle, transform: flip ? "scaleX(-1)" : "none" }}>
       <div style={{ marginTop: `${petOffset}px` }}>
-        <PetCanvas config={staticConfig} size={petSize} patSignal={0} static={true} />
+        <PetCanvas config={staticConfig} size={petSize} patSignal={0} />
       </div>
     </div>
   );
@@ -993,14 +993,14 @@ function MessageBubble({
 
   if (message.type === "image" && message.image) {
     return (
-      <div className={`flex flex-col ${isLeft ? "items-start" : "items-end"}`}>
+      <div className="flex flex-col items-start max-w-[70%]">
         <img
           src={message.image}
           alt="image"
           className="animate-bubbleIn rounded-2xl border object-cover"
           style={{
-            maxWidth: "140px",
-            maxHeight: "180px",
+            maxWidth: "100%",
+            maxHeight: "280px",
             borderColor: "var(--card-border)",
           }}
         />
@@ -1013,10 +1013,10 @@ function MessageBubble({
 
   if (message.type === "sticker") {
     return (
-      <div className={`flex flex-col ${isLeft ? "items-start" : "items-end"}`}>
+      <div className={`flex flex-col ${isLeft ? "items-start" : "items-end"} max-w-[70%]`}>
         {message.moodTag && (
           <span
-            className={`mb-1 ${isLeft ? "ml-1" : "mr-1"} inline-flex items-center rounded-full px-2 py-0.5 text-[10px]`}
+            className="mb-1 ml-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px]"
             style={{
               background: "color-mix(in srgb, var(--accent) 15%, transparent)",
               color: "var(--accent)",
@@ -1030,7 +1030,7 @@ function MessageBubble({
           <img
             src={message.sticker}
             alt="sticker"
-            className="max-h-24 max-w-[120px] animate-bubbleIn rounded-xl object-contain"
+            className="max-h-32 max-w-full animate-bubbleIn rounded-xl object-contain"
           />
         ) : (
           <div

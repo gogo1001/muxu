@@ -212,26 +212,6 @@ export default function BackupPanel() {
           <li>恢复后需要刷新页面才能完全生效</li>
         </ul>
       </div>
-
-      <div
-        className="rounded-xl p-3 text-[10px] leading-relaxed"
-        style={{
-          background: "color-mix(in srgb, var(--accent) 8%, transparent)",
-          border: "1px solid color-mix(in srgb, var(--accent) 25%, transparent)",
-          color: "var(--text-soft)",
-        }}
-      >
-        <p className="mb-1.5 font-medium" style={{ color: "var(--accent)" }}>💌 关于本站</p>
-        <div className="space-y-0.5">
-          <p>网站为抖音 <span className="font-medium" style={{ color: "var(--text)" }}>ovobbit</span> 制作</p>
-          <p>抖音号：<span className="font-medium" style={{ color: "var(--text)" }}>xm0919653247</span></p>
-          <p>小红书：<span className="font-medium" style={{ color: "var(--text)" }}>苜蓿🌿</span></p>
-          <p>红薯号：<span className="font-medium" style={{ color: "var(--text)" }}>26822731387</span></p>
-          <p className="mt-1.5">有bug反馈直接找我就行～</p>
-          <p>可二传，二传请标明作者</p>
-          <p className="mt-1.5 text-center font-medium" style={{ color: "var(--accent)" }}>祝大家和哥/姐玩的开心 ✨</p>
-        </div>
-      </div>
     </div>
   );
 }
