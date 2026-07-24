@@ -88,11 +88,12 @@ export default function DesktopPet() {
   }, []);
 
   useEffect(() => {
+    if (!petEnabled) return;
     scheduleNextPeek();
     return () => {
       if (peekTimerRef.current) window.clearTimeout(peekTimerRef.current);
     };
-  }, [scheduleNextPeek]);
+  }, [scheduleNextPeek, petEnabled]);
 
   // 宠物躲藏时暂停偷看，找到后恢复
   useEffect(() => {
@@ -145,6 +146,7 @@ export default function DesktopPet() {
 
   // 对方随机摸摸（4% 概率 / 每 12 秒）→ 聊天系统消息提醒
   useEffect(() => {
+    if (!petEnabled) return;
     const id = window.setInterval(() => {
       if (Math.random() < 0.04) {
         setPatSignal((n) => n + 1);
@@ -152,10 +154,11 @@ export default function DesktopPet() {
       }
     }, 12000);
     return () => window.clearInterval(id);
-  }, [activeConversationId, patPet]);
+  }, [activeConversationId, patPet, petEnabled]);
 
   // === 监听头像长按事件 → 启动小手 ===
   useEffect(() => {
+    if (!petEnabled) return;
     const onLongPress = (e: Event) => {
       const evt = e as CustomEvent;
       handActive.current = true;

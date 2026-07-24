@@ -38,14 +38,11 @@ export default function ThemeApplier() {
     root.setAttribute("data-bubble", beauty.bubbleStyle);
     root.setAttribute("data-theme", beauty.themeId);
 
-    // 自定义壁纸图片
-    const chatBg = document.querySelector(".chat-bg") as HTMLElement | null;
-    if (chatBg) {
-      if (beauty.wallpaper === "custom" && beauty.wallpaperImage) {
-        chatBg.style.backgroundImage = `url(${beauty.wallpaperImage})`;
-      } else {
-        chatBg.style.backgroundImage = "";
-      }
+    // 自定义壁纸图片通过 CSS 变量传递，避免切换会话时 DOM 重建导致丢失
+    if (beauty.wallpaper === "custom" && beauty.wallpaperImage) {
+      root.style.setProperty("--wallpaper-image", `url(${beauty.wallpaperImage})`);
+    } else {
+      root.style.setProperty("--wallpaper-image", "none");
     }
   }, [beauty, theme, font]);
 

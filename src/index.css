@@ -63,6 +63,7 @@ html[data-wallpaper="plain"] .chat-bg {
 }
 html[data-wallpaper="custom"] .chat-bg {
   background-color: var(--bg);
+  background-image: var(--wallpaper-image);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
