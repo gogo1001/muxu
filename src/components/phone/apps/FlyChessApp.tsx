@@ -206,11 +206,25 @@ export default function FlyChessApp({ onBack }: { onBack: () => void }) {
             movePlane(movablePlanes[0].id);
           }, 500);
         } else {
-          setMessage(`请选择要移动的飞机（投出 ${finalDice} 点）`);
+          // 如果是其他玩家的回合，自动选择最优飞机
+          if (currentPlayerIndex !== 0) {
+            const bestPlane = movablePlanes.reduce((best, p) => {
+              if (best.position < 0 && p.position >= 0) return p;
+              if (p.position < 0) return best;
+              if (best.position < TOTAL_TRACK && p.position >= TOTAL_TRACK) return p;
+              if (p.position > best.position) return p;
+              return best;
+            });
+            setTimeout(() => {
+              movePlane(bestPlane.id);
+            }, 500);
+          } else {
+            setMessage(`请选择要移动的飞机（投出 ${finalDice} 点）`);
+          }
         }
       }
     }, 80);
-  }, [isRolling, hasRolled, gamePhase, currentPlayer, players, contacts]);
+  }, [isRolling, hasRolled, gamePhase, currentPlayer, players, contacts, currentPlayerIndex]);
 
   const nextTurn = useCallback(() => {
     setHasRolled(false);
@@ -218,7 +232,16 @@ export default function FlyChessApp({ onBack }: { onBack: () => void }) {
     const nextIdx = (currentPlayerIndex + 1) % playerCount;
     setCurrentPlayerIndex(nextIdx);
     setCurrentPlayer(PLAYER_ORDER[nextIdx]);
-  }, [currentPlayerIndex, playerCount]);
+
+    // 如果不是我的回合（红方），自动投骰子
+    if (nextIdx !== 0) {
+      setTimeout(() => {
+        if (gamePhase === "playing") {
+          rollDice();
+        }
+      }, 800);
+    }
+  }, [currentPlayerIndex, playerCount, gamePhase, rollDice]);
 
   const movePlane = useCallback((planeId: number) => {
     if (!hasRolled || isRolling) return;
