@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import { useAppStore } from "@/store/app";
 import { AppHeader } from "./HomeScreen";
 
 type PlayerColor = "red" | "yellow" | "blue" | "green";
@@ -93,6 +94,10 @@ export default function FlyChessApp({ onBack }: { onBack: () => void }) {
   const [hasRolled, setHasRolled] = useState<boolean>(false);
   const [winner, setWinner] = useState<PlayerColor | null>(null);
   const [message, setMessage] = useState<string>("");
+  const [cardPopup, setCardPopup] = useState<{ text: string; color: PlayerColor } | null>(null);
+
+  // 从字卡库获取聊天字卡
+  const contacts = useAppStore((s) => s.contacts);
 
   // 响应式适配状态
   const [isPortrait, setIsPortrait] = useState(false);
@@ -159,6 +164,19 @@ export default function FlyChessApp({ onBack }: { onBack: () => void }) {
         setIsRolling(false);
         setHasRolled(true);
 
+        // 投到6或1时，随机抽取聊天字卡显示
+        if (finalDice === 6 || finalDice === 1) {
+          const chatCards = contacts[0]?.cards?.chat || [];
+          if (chatCards.length > 0) {
+            const randomCard = chatCards[Math.floor(Math.random() * chatCards.length)];
+            const cardText = randomCard.content || randomCard.name || "";
+            if (cardText) {
+              setCardPopup({ text: cardText, color: currentPlayer });
+              setTimeout(() => setCardPopup(null), 30000);
+            }
+          }
+        }
+
         const player = players[currentPlayer];
         const movablePlanes = player.planes.filter((p) => canMove(p, finalDice));
         if (movablePlanes.length === 0) {
@@ -175,7 +193,7 @@ export default function FlyChessApp({ onBack }: { onBack: () => void }) {
         }
       }
     }, 80);
-  }, [isRolling, hasRolled, gamePhase, currentPlayer, players]);
+  }, [isRolling, hasRolled, gamePhase, currentPlayer, players, contacts]);
 
   const nextTurn = useCallback(() => {
     setHasRolled(false);
@@ -452,6 +470,39 @@ export default function FlyChessApp({ onBack }: { onBack: () => void }) {
           >
             继续竖屏玩
           </button>
+        </div>
+      )}
+
+      {/* 字卡弹窗 - 投到6或1时随机抽取聊天字卡，30秒后消失 */}
+      {cardPopup && (
+        <div
+          className="absolute inset-0 z-30 flex items-center justify-center px-6"
+          style={{ background: "rgba(0,0,0,0.5)" }}
+          onClick={() => setCardPopup(null)}
+        >
+          <div
+            className="w-full max-w-xs animate-popIn rounded-2xl p-5 text-center shadow-2xl"
+            style={{
+              background: "var(--card)",
+              border: `2px solid ${COLORS[cardPopup.color].main}`,
+            }}
+          >
+            <div className="mb-2 flex items-center justify-center gap-1.5">
+              <div className="h-3 w-3 rounded-full" style={{ background: COLORS[cardPopup.color].main }} />
+              <span className="text-xs font-bold" style={{ color: COLORS[cardPopup.color].dark }}>
+                {COLORS[cardPopup.color].name}方 抽到字卡
+              </span>
+            </div>
+            <div
+              className="mb-3 rounded-xl px-4 py-4 text-sm font-medium leading-relaxed"
+              style={{ background: COLORS[cardPopup.color].light, color: "var(--text)" }}
+            >
+              {cardPopup.text}
+            </div>
+            <div className="text-[10px]" style={{ color: "var(--text-soft)" }}>
+              30秒后自动关闭 · 点击任意位置关闭
+            </div>
+          </div>
         </div>
       )}
 
