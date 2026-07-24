@@ -98,6 +98,23 @@ export default function FlyChessApp({ onBack }: { onBack: () => void }) {
 
   // 从字卡库获取聊天字卡
   const contacts = useAppStore((s) => s.contacts);
+  const myAvatarImage = useAppStore((s) => s.beauty.myAvatarImage) || "";
+  const myAvatarText = useAppStore((s) => s.beauty.myName) || "我";
+
+  // 每个颜色对应的头像
+  const getAvatarForColor = (color: PlayerColor): { image?: string; text: string } => {
+    const colorIndex = PLAYER_ORDER.indexOf(color);
+    if (colorIndex === 0) {
+      return { image: myAvatarImage, text: myAvatarText };
+    }
+    const contactIdx = colorIndex - 1;
+    if (contactIdx < contacts.length) {
+      const c = contacts[contactIdx];
+      return { image: c.avatarImage || "", text: c.avatar || c.name || "?" };
+    }
+    const fallbackNames = ["🐱", "🐶", "🐰", "🐻"];
+    return { text: fallbackNames[colorIndex % fallbackNames.length] };
+  };
 
   // 响应式适配状态
   const [isPortrait, setIsPortrait] = useState(false);
@@ -383,6 +400,12 @@ export default function FlyChessApp({ onBack }: { onBack: () => void }) {
             movablePlaneIds={movablePlaneIds}
             currentPlayer={currentPlayer}
             onPlaneClick={movePlane}
+            avatarInfos={{
+              red: getAvatarForColor("red"),
+              yellow: getAvatarForColor("yellow"),
+              green: getAvatarForColor("green"),
+              blue: getAvatarForColor("blue"),
+            }}
           />
         </div>
 
@@ -568,6 +591,11 @@ function Dice({ value, isRolling, color }: { value: number; isRolling: boolean; 
   );
 }
 
+interface AvatarInfo {
+  image?: string;
+  text: string;
+}
+
 function Board({
   size,
   players,
@@ -575,6 +603,7 @@ function Board({
   movablePlaneIds,
   currentPlayer,
   onPlaneClick,
+  avatarInfos,
 }: {
   size: number;
   players: Record<PlayerColor, Player>;
@@ -582,6 +611,7 @@ function Board({
   movablePlaneIds: number[];
   currentPlayer: PlayerColor;
   onPlaneClick: (planeId: number) => void;
+  avatarInfos: Record<PlayerColor, AvatarInfo>;
 }) {
   const cellSize = size / 14.5;
   const center = size / 2;
@@ -814,21 +844,42 @@ function Board({
                 className="pulse-ring"
               />
             )}
+            {/* 头像棋子 */}
+            <defs>
+              <clipPath id={`clip-${plane.color}-${plane.id}`}>
+                <circle cx={cx} cy={cy} r="6.5" />
+              </clipPath>
+            </defs>
             <circle
               cx={cx}
               cy={cy}
               r="7"
-              fill={`url(#plane-grad-${plane.color})`}
-              stroke={COLORS[plane.color].dark}
-              strokeWidth="1"
+              fill={COLORS[plane.color].light}
+              stroke={COLORS[plane.color].main}
+              strokeWidth="1.5"
             />
-            <circle
-              cx={cx - 2.5}
-              cy={cy - 2.5}
-              r="2"
-              fill="#fff"
-              opacity="0.7"
-            />
+            {avatarInfos[plane.color]?.image ? (
+              <image
+                href={avatarInfos[plane.color].image}
+                x={cx - 6.5}
+                y={cy - 6.5}
+                width="13"
+                height="13"
+                clipPath={`url(#clip-${plane.color}-${plane.id})`}
+                preserveAspectRatio="xMidYMid slice"
+              />
+            ) : (
+              <text
+                x={cx}
+                y={cy + 2.5}
+                textAnchor="middle"
+                fontSize="8"
+                fontWeight="bold"
+                fill={COLORS[plane.color].dark}
+              >
+                {avatarInfos[plane.color]?.text || "?"}
+              </text>
+            )}
           </g>
         );
       })}
