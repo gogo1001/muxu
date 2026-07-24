@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { AppHeader } from "./HomeScreen";
 
 type PlayerColor = "red" | "yellow" | "blue" | "green";
@@ -94,7 +94,37 @@ export default function FlyChessApp({ onBack }: { onBack: () => void }) {
   const [winner, setWinner] = useState<PlayerColor | null>(null);
   const [message, setMessage] = useState<string>("");
 
+  // 响应式适配状态
+  const [isPortrait, setIsPortrait] = useState(false);
+  const [dismissRotateHint, setDismissRotateHint] = useState(false);
+  const [boardSize, setBoardSize] = useState(280);
+  const boardWrapRef = useRef<HTMLDivElement>(null);
+
   const activePlayers = PLAYER_ORDER.slice(0, playerCount);
+
+  // 通过 CSS media query (orientation: portrait) 检测屏幕方向
+  useEffect(() => {
+    const mq = window.matchMedia("(orientation: portrait)");
+    const update = () => setIsPortrait(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
+  // 通过 ResizeObserver 检测棋盘容器实际尺寸
+  useEffect(() => {
+    const el = boardWrapRef.current;
+    if (!el) return;
+    const update = () => {
+      const rect = el.getBoundingClientRect();
+      const s = Math.min(rect.width, rect.height);
+      if (s > 0) setBoardSize(s);
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const initGame = useCallback((count: number) => {
     const newPlayers: Record<PlayerColor, Player> = {} as Record<PlayerColor, Player>;
@@ -265,11 +295,12 @@ export default function FlyChessApp({ onBack }: { onBack: () => void }) {
   const restartGame = () => {
     setGamePhase("setup");
     setWinner(null);
+    setDismissRotateHint(false);
   };
 
   if (gamePhase === "setup") {
     return (
-      <div className="flex h-full flex-col">
+      <div className="flex h-full flex-col" style={{ touchAction: "manipulation" }}>
         <AppHeader title="✈️ 飞行棋" onBack={onBack} />
         <div className="flex flex-1 flex-col items-center justify-center px-6">
           <div className="mb-6 text-center">
@@ -287,6 +318,7 @@ export default function FlyChessApp({ onBack }: { onBack: () => void }) {
                   background: "var(--card)",
                   borderColor: "var(--card-border)",
                   color: "var(--text)",
+                  touchAction: "manipulation",
                 }}
               >
                 <div className="flex gap-1">
@@ -315,21 +347,43 @@ export default function FlyChessApp({ onBack }: { onBack: () => void }) {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col" style={{ touchAction: "manipulation" }}>
       <AppHeader title="✈️ 飞行棋" onBack={onBack} />
 
-      <div className="flex flex-1 flex-row overflow-hidden">
-        <div className="flex flex-1 items-center justify-center px-2">
-          <Board players={players} activePlayers={activePlayers} movablePlaneIds={movablePlaneIds} currentPlayer={currentPlayer} onPlaneClick={movePlane} />
+      <div className={`flex flex-1 overflow-hidden ${isPortrait ? "flex-col" : "flex-row"}`}>
+        {/* 棋盘区域 - 自适应填充 */}
+        <div
+          ref={boardWrapRef}
+          className={`flex items-center justify-center overflow-hidden p-1 ${
+            isPortrait ? "min-h-0 flex-1" : "flex-1"
+          }`}
+        >
+          <Board
+            size={boardSize}
+            players={players}
+            activePlayers={activePlayers}
+            movablePlaneIds={movablePlaneIds}
+            currentPlayer={currentPlayer}
+            onPlaneClick={movePlane}
+          />
         </div>
 
-        <div className="flex w-36 flex-col gap-3 border-l p-3" style={{ borderColor: "var(--card-border)" }}>
-          <div className="flex flex-col gap-1.5">
-            <div className="text-xs font-bold" style={{ color: "var(--text-soft)" }}>玩家状态</div>
+        {/* 控制面板 - 横屏右侧 w-32 / 竖屏底部全宽 */}
+        <div
+          className={`flex gap-2 p-2 ${
+            isPortrait
+              ? "w-full flex-row items-center border-t"
+              : "w-32 flex-col border-l"
+          }`}
+          style={{ borderColor: "var(--card-border)" }}
+        >
+          {/* 玩家状态 */}
+          <div className={`flex gap-1 ${isPortrait ? "flex-1 flex-row flex-wrap" : "flex-col"}`}>
+            <div className="text-[10px] font-bold" style={{ color: "var(--text-soft)" }}>玩家</div>
             {activePlayers.map((color, idx) => (
               <div
                 key={color}
-                className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs ${
+                className={`flex items-center gap-1 rounded-lg px-1.5 py-1 text-[10px] ${
                   idx === currentPlayerIndex ? "font-bold" : ""
                 }`}
                 style={{
@@ -337,45 +391,45 @@ export default function FlyChessApp({ onBack }: { onBack: () => void }) {
                   color: idx === currentPlayerIndex ? COLORS[color].dark : "var(--text)",
                 }}
               >
-                <div className="h-3 w-3 rounded-full" style={{ background: COLORS[color].main }} />
-                <span className="flex-1">{COLORS[color].name}方</span>
-                <span className="text-[10px]">{players[color]?.finishedCount || 0}/4</span>
+                <div className="h-2.5 w-2.5 rounded-full" style={{ background: COLORS[color].main }} />
+                <span>{COLORS[color].name}</span>
+                <span className="text-[9px]">{players[color]?.finishedCount || 0}/4</span>
               </div>
             ))}
           </div>
 
-          <div className="flex flex-col items-center gap-2">
-            <div className="text-[10px]" style={{ color: "var(--text-soft)" }}>
-              当前回合：<span style={{ color: COLORS[currentPlayer].main, fontWeight: "bold" }}>{COLORS[currentPlayer].name}方</span>
+          {/* 骰子 + 当前回合 */}
+          <div className="flex flex-col items-center gap-1">
+            <div className="text-[9px] text-center" style={{ color: "var(--text-soft)" }}>
+              <span style={{ color: COLORS[currentPlayer].main, fontWeight: "bold" }}>{COLORS[currentPlayer].name}</span>方
             </div>
             <button
               onClick={rollDice}
               disabled={isRolling || hasRolled || gamePhase !== "playing"}
-              className="transition active:scale-90 disabled:opacity-50"
+              className="flex items-center justify-center p-1 transition active:scale-90 disabled:opacity-50"
+              style={{ touchAction: "manipulation", minWidth: "44px", minHeight: "44px" }}
             >
               <Dice value={dice} isRolling={isRolling} color={COLORS[currentPlayer].main} />
             </button>
             {!hasRolled && !isRolling && (
-              <div className="text-[10px]" style={{ color: "var(--text-soft)" }}>
-                点击骰子投点
-              </div>
+              <div className="text-[9px]" style={{ color: "var(--text-soft)" }}>点击骰子</div>
             )}
           </div>
 
-          {message && (
-            <div
-              className="rounded-lg px-2 py-2 text-center text-[10px]"
-              style={{ background: "var(--card)", border: "1px solid var(--card-border)", color: "var(--text)" }}
-            >
-              {message}
-            </div>
-          )}
-
-          <div className="mt-auto">
+          {/* 消息 + 重开 */}
+          <div className={`flex gap-1 ${isPortrait ? "flex-1 flex-col" : "flex-col"}`}>
+            {message && (
+              <div
+                className="rounded-lg px-2 py-1 text-center text-[9px] leading-tight"
+                style={{ background: "var(--card)", border: "1px solid var(--card-border)", color: "var(--text)" }}
+              >
+                {message}
+              </div>
+            )}
             <button
               onClick={restartGame}
-              className="w-full rounded-lg py-1.5 text-xs"
-              style={{ background: "var(--bg-deep)", color: "var(--text-soft)" }}
+              className={`mt-auto rounded-lg py-1 text-[10px] ${isPortrait ? "" : "w-full"}`}
+              style={{ background: "var(--bg-deep)", color: "var(--text-soft)", touchAction: "manipulation" }}
             >
               🔄 重开
             </button>
@@ -383,8 +437,26 @@ export default function FlyChessApp({ onBack }: { onBack: () => void }) {
         </div>
       </div>
 
+      {/* 横屏旋转提示 - 仅在 playing 阶段且竖屏时显示 */}
+      {gamePhase === "playing" && isPortrait && !dismissRotateHint && (
+        <div
+          className="absolute inset-0 z-50 flex flex-col items-center justify-center px-6 text-center"
+          style={{ background: "rgba(0,0,0,0.85)", color: "#fff" }}
+        >
+          <div className="rotate-hint-icon mb-4 text-6xl">📱</div>
+          <div className="mb-1 text-base font-bold">请旋转手机至横屏以获得更好体验</div>
+          <button
+            onClick={() => setDismissRotateHint(true)}
+            className="mt-5 rounded-full border border-white/40 px-4 py-1.5 text-xs"
+            style={{ touchAction: "manipulation" }}
+          >
+            继续竖屏玩
+          </button>
+        </div>
+      )}
+
       {gamePhase === "finished" && winner && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/40">
           <div
             className="mx-6 w-full max-w-xs rounded-2xl p-6 text-center"
             style={{ background: "var(--card)", border: "1px solid var(--card-border)" }}
@@ -398,7 +470,7 @@ export default function FlyChessApp({ onBack }: { onBack: () => void }) {
             <button
               onClick={restartGame}
               className="w-full rounded-xl py-2 text-sm font-medium"
-              style={{ background: COLORS[winner].main, color: "#fff" }}
+              style={{ background: COLORS[winner].main, color: "#fff", touchAction: "manipulation" }}
             >
               再来一局
             </button>
@@ -423,7 +495,7 @@ function Dice({ value, isRolling, color }: { value: number; isRolling: boolean; 
 
   return (
     <div
-      className={`relative h-14 w-14 rounded-xl shadow-lg ${isRolling ? "dice-roll" : ""}`}
+      className={`relative h-16 w-16 rounded-xl shadow-lg ${isRolling ? "dice-roll" : ""}`}
       style={{
         background: `linear-gradient(145deg, #ffffff, #f0f0f0)`,
         boxShadow: `0 4px 12px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.8)`,
@@ -432,7 +504,7 @@ function Dice({ value, isRolling, color }: { value: number; isRolling: boolean; 
       {dots.map(([x, y], i) => (
         <div
           key={i}
-          className="absolute h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full"
+          className="absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
           style={{
             left: `${x}%`,
             top: `${y}%`,
@@ -446,20 +518,21 @@ function Dice({ value, isRolling, color }: { value: number; isRolling: boolean; 
 }
 
 function Board({
+  size,
   players,
   activePlayers,
   movablePlaneIds,
   currentPlayer,
   onPlaneClick,
 }: {
+  size: number;
   players: Record<PlayerColor, Player>;
   activePlayers: PlayerColor[];
   movablePlaneIds: number[];
   currentPlayer: PlayerColor;
   onPlaneClick: (planeId: number) => void;
 }) {
-  const size = 320;
-  const cellSize = 22;
+  const cellSize = size / 14.5;
   const center = size / 2;
 
   const gridPositions: { x: number; y: number }[] = [];
@@ -572,7 +645,13 @@ function Board({
   });
 
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+    <svg
+      width="100%"
+      height="100%"
+      viewBox={`0 0 ${size} ${size}`}
+      preserveAspectRatio="xMidYMid meet"
+      style={{ touchAction: "manipulation", display: "block" }}
+    >
       <defs>
         {Object.entries(COLORS).map(([color, c]) => (
           <radialGradient key={color} id={`plane-grad-${color}`} cx="30%" cy="30%">
@@ -655,6 +734,8 @@ function Board({
         const count = positionCounts[key] || 1;
         const offset = count > 1 ? ((plane.id % 2) - 0.5) * 4 : 0;
         const offsetY = count > 2 ? (Math.floor(plane.id / 2) - 0.5) * 4 : 0;
+        const cx = pos.x + cellSize / 2 - 0.5 + offset;
+        const cy = pos.y + cellSize / 2 - 0.5 + offsetY;
 
         return (
           <g
@@ -664,8 +745,17 @@ function Board({
           >
             {isMovable && (
               <circle
-                cx={pos.x + cellSize / 2 - 0.5 + offset}
-                cy={pos.y + cellSize / 2 - 0.5 + offsetY}
+                cx={cx}
+                cy={cy}
+                r={cellSize * 0.55}
+                fill="transparent"
+                pointerEvents="all"
+              />
+            )}
+            {isMovable && (
+              <circle
+                cx={cx}
+                cy={cy}
                 r="10"
                 fill="none"
                 stroke={COLORS[plane.color].main}
@@ -674,16 +764,16 @@ function Board({
               />
             )}
             <circle
-              cx={pos.x + cellSize / 2 - 0.5 + offset}
-              cy={pos.y + cellSize / 2 - 0.5 + offsetY}
+              cx={cx}
+              cy={cy}
               r="7"
               fill={`url(#plane-grad-${plane.color})`}
               stroke={COLORS[plane.color].dark}
               strokeWidth="1"
             />
             <circle
-              cx={pos.x + cellSize / 2 - 2.5 + offset}
-              cy={pos.y + cellSize / 2 - 2.5 + offsetY}
+              cx={cx - 2.5}
+              cy={cy - 2.5}
               r="2"
               fill="#fff"
               opacity="0.7"
