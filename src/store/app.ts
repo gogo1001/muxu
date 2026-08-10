@@ -4777,7 +4777,8 @@ export const useAppStore = create<
               const minMs = Math.max(1, chat.autoIntervalMin) * 60 * 1000;
               const maxMs = Math.max(minMs, chat.autoIntervalMax) * 60 * 1000;
               return minMs + Math.random() * (maxMs - minMs);
-            }
+            },
+            { fireProbability: 0.5 } // 每次定时到期仅 50% 概率真正发消息，避免"一直发"
           );
         };
         setupAutoChatMessage();

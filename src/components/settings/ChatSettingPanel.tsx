@@ -21,7 +21,7 @@ export default function ChatSettingPanel() {
           <input
             type="range"
             min={3}
-            max={300}
+            max={360}
             value={chat.replySpeedMin}
             onChange={(e) => {
               const v = Number(e.target.value);
@@ -37,7 +37,7 @@ export default function ChatSettingPanel() {
           <input
             type="range"
             min={3}
-            max={300}
+            max={360}
             value={chat.replySpeedMax}
             onChange={(e) => {
               const v = Number(e.target.value);
@@ -51,7 +51,7 @@ export default function ChatSettingPanel() {
             { label: "快速", min: 3, max: 8 },
             { label: "正常", min: 8, max: 20 },
             { label: "慢", min: 30, max: 90 },
-            { label: "很慢", min: 120, max: 300 },
+            { label: "很慢", min: 120, max: 360 },
           ].map((p) => (
             <button
               key={p.label}

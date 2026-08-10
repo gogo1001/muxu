@@ -77,7 +77,7 @@ export const DEFAULT_CHAT_SETTINGS: ChatSettings = {
   readBadgeEnabled: true,
   recallEnabled: true,
   privateReplyMin: 1,
-  privateReplyMax: 3,
+  privateReplyMax: 2,
   groupReplyMin: 1,
   groupReplyMax: 3,
   msgToastEnabled: true,
