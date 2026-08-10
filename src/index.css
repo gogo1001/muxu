@@ -38,6 +38,33 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ============ 手写字体（随机选择使用，每封信挑一款） ============ */
+.handwrite {
+  font-family: "Ma Shan Zheng", "ZCOOL KuaiLe", "ZCOOL XiaoWei", "Liu Jian Mao Cao",
+    "Long Cang", "Huangyou Sans JH", "Kaiti SC", "STKaiti", "KaiTi", "楷体",
+    "Noto Sans SC", sans-serif;
+  line-height: 1.9;
+  letter-spacing: 0.04em;
+}
+.handwrite.font-ma {
+  font-family: "Ma Shan Zheng", "Kaiti SC", "KaiTi", "楷体", serif;
+}
+.handwrite.font-zcool-kuaile {
+  font-family: "ZCOOL KuaiLe", "Ma Shan Zheng", "KaiTi", "楷体", sans-serif;
+}
+.handwrite.font-zcool-xiaowei {
+  font-family: "ZCOOL XiaoWei", "Ma Shan Zheng", "KaiTi", serif;
+}
+.handwrite.font-liu {
+  font-family: "Liu Jian Mao Cao", "Long Cang", "Ma Shan Zheng", "KaiTi", cursive;
+}
+.handwrite.font-longcang {
+  font-family: "Long Cang", "Liu Jian Mao Cao", "Ma Shan Zheng", "KaiTi", cursive;
+}
+.handwrite.font-kaiti {
+  font-family: "Kaiti SC", "STKaiti", "KaiTi", "楷体", "Ma Shan Zheng", serif;
+}
+
 /* ============ 壁纸 ============ */
 html[data-wallpaper="paper"] .chat-bg {
   background-color: var(--bg);

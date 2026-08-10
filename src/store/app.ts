@@ -42,6 +42,7 @@ interface CardStore {
   batchImport: (contactId: string, module: CardModule, text: string, group?: string) => { added: number; duplicates: number };
   resetModule: (contactId: string, module: CardModule) => void;
   pickRandomCard: (contactId: string, module: CardModule, excludeId?: string) => Card | undefined;
+  pickRandomCards: (contactId: string, module: CardModule, count: number) => Card[];
   setCardGroup: (contactId: string, id: string, group: string) => void;
   setCardsGroupBatch: (contactId: string, ids: string[], group: string) => void;
   addCardGroup: (name: string) => void;
@@ -612,11 +613,16 @@ export const useAppStore = create<
           const member = st.contacts.find((c) => c.id === memberId);
           senderName = member?.name || memberId;
           senderAvatarText = member?.avatar?.slice?.(0, 1) || senderName.slice(0, 1) || "群";
-          senderAvatarImage = member?.avatarImage || undefined;
+          // 群聊中查找该成员的私聊会话头像
+          const privConv = st.conversations.find(
+            (c) => c.type === "private" && c.memberIds.includes(memberId)
+          );
+          senderAvatarImage = member?.avatarImage || privConv?.herAvatarImage || st.beauty.herAvatarImage || undefined;
         } else {
           senderName = contact?.name || "对方";
           senderAvatarText = contact?.avatar?.slice?.(0, 1) || senderName.slice(0, 1) || "?";
-          senderAvatarImage = contact?.avatarImage || undefined;
+          // 私聊：依次查找 contact → 会话设置 → 全局美化设置
+          senderAvatarImage = contact?.avatarImage || conv.herAvatarImage || st.beauty.herAvatarImage || undefined;
         }
         const conversationName = conv.name || (isGroup ? "群聊" : contact?.name || "私聊");
 
@@ -1236,6 +1242,15 @@ export const useAppStore = create<
         const pool = contact.cards[module].filter((c) => c.id !== excludeId);
         if (pool.length === 0) return undefined;
         return pool[Math.floor(Math.random() * pool.length)];
+      },
+
+      pickRandomCards: (contactId, module, count) => {
+        const contact = get().contacts.find((c) => c.id === contactId);
+        if (!contact) return [];
+        const pool = [...contact.cards[module]];
+        if (pool.length === 0) return [];
+        const shuffled = pool.sort(() => Math.random() - 0.5);
+        return shuffled.slice(0, Math.min(count, shuffled.length));
       },
 
       setCardGroup: (contactId, id, group) =>
@@ -4671,6 +4686,50 @@ export const useAppStore = create<
           }, delay);
         };
         setupAutoChatMessage();
+
+        // 信件生成定时器：每25分钟有2%概率生成一封手写信
+        const LETTER_SEAL_EMOJIS = ["😊", "🥰", "😌", "🤔", "😴", "😤", "🥺", "😇", "🤗", "😏", "😎", "🤭", "😳", "😚", "😋"];
+        const setupLetterGeneration = () => {
+          const LETTER_INTERVAL_MS = 25 * 60 * 1000;
+          window.setTimeout(() => {
+            const st = useAppStore.getState();
+            if (st.contacts.length > 0 && st.conversations.length > 0) {
+              if (Math.random() < 0.02) {
+                const privateConvs = st.conversations.filter((c) => c.type === "private" && c.memberIds.length > 0);
+                const convs = privateConvs.length > 0 ? privateConvs : st.conversations;
+                const targetConv = convs[Math.floor(Math.random() * convs.length)];
+                if (targetConv) {
+                  const contactId = targetConv.memberIds[0];
+                  const cardCount = 5 + Math.floor(Math.random() * 4);
+                  const cards = st.pickRandomCards(contactId, "chat", cardCount);
+                  if (cards.length > 0) {
+                    const letterLines = cards.map((c) => c.content);
+                    const letterText = letterLines.join("\n");
+                    const sealEmoji = LETTER_SEAL_EMOJIS[Math.floor(Math.random() * LETTER_SEAL_EMOJIS.length)];
+                    const letterMsg: Message = {
+                      id: uid("letter"),
+                      sender: contactId,
+                      type: "text",
+                      text: letterText,
+                      timestamp: Date.now(),
+                      isAutoInitiated: true,
+                      isLetter: true,
+                      letterSeal: sealEmoji,
+                      envelopeOpened: false,
+                    };
+                    useAppStore.setState((s) => ({
+                      conversations: s.conversations.map((c) =>
+                        c.id === targetConv.id ? { ...c, messages: [...c.messages, letterMsg] } : c
+                      ),
+                    }));
+                  }
+                }
+              }
+            }
+            setupLetterGeneration();
+          }, LETTER_INTERVAL_MS);
+        };
+        setupLetterGeneration();
       },
     },
   ),

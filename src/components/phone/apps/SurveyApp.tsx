@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAppStore } from "@/store/app";
 import { AppHeader } from "./HomeScreen";
-import { Plus, Send, Shield, Check, X, Trash, BookOpen, FileText, Loader2 } from "lucide-react";
+import { Plus, Send, Shield, Check, X, Trash, BookOpen, FileText, Loader2, Eye } from "lucide-react";
 import type { SurveyQuestion } from "@/types";
 import { supabase, PUBLIC_SURVEYS_TABLE } from "@/lib/supabase";
 
@@ -28,8 +28,8 @@ export default function SurveyApp({ onBack }: { onBack: () => void }) {
 
   // tab: "mine" | "library"
   const [tab, setTab] = useState<"mine" | "library">("mine");
-  // view: "list" | "create" | "admin"
-  const [view, setView] = useState<"list" | "create" | "admin">("list");
+  // view: "list" | "create" | "admin" | "preview"
+  const [view, setView] = useState<"list" | "create" | "admin" | "preview">("list");
   const [adminPassword, setAdminPassword] = useState("");
   const [isAdmin, setIsAdmin] = useState<boolean>(() => {
     try {
@@ -39,6 +39,14 @@ export default function SurveyApp({ onBack }: { onBack: () => void }) {
     }
   });
   const [passwordError, setPasswordError] = useState(false);
+
+  // 预览的问卷
+  const [previewSurvey, setPreviewSurvey] = useState<{
+    title: string;
+    author: string;
+    questions: SurveyQuestion[];
+    onApply?: () => void;
+  } | null>(null);
 
   // 创建/投稿 共用表单
   const [title, setTitle] = useState("");
@@ -279,8 +287,13 @@ export default function SurveyApp({ onBack }: { onBack: () => void }) {
     );
   };
 
-  const headerTitle = view === "create" ? (tab === "mine" ? "新建问卷" : "投稿问卷") : view === "admin" ? "管理员审核" : "问卷";
-  const headerBack = view === "list" ? onBack : () => setView("list");
+  const headerTitle =
+    view === "preview" ? "问卷预览" :
+    view === "create" ? (tab === "mine" ? "新建问卷" : "投稿问卷") :
+    view === "admin" ? "管理员审核" : "问卷";
+  const headerBack =
+    view === "preview" ? () => { setView("list"); setPreviewSurvey(null); } :
+    view === "list" ? onBack : () => setView("list");
 
   return (
     <div className="flex h-full flex-col">
@@ -392,6 +405,26 @@ export default function SurveyApp({ onBack }: { onBack: () => void }) {
                       </div>
                     )}
                     <div className="mt-2 flex justify-end gap-2">
+                      <button
+                        onClick={() => {
+                          setPreviewSurvey({
+                            title: s.title,
+                            author: s.author,
+                            questions: s.questions,
+                            onApply: () => handleApplyLocal(s.id),
+                          });
+                          setView("preview");
+                        }}
+                        className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-sm"
+                        style={{
+                          background: "transparent",
+                          color: "var(--text)",
+                          border: "1px solid var(--card-border)",
+                        }}
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        预览
+                      </button>
                       <button
                         onClick={() => deleteSurvey(s.id)}
                         className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-sm"
@@ -506,6 +539,26 @@ export default function SurveyApp({ onBack }: { onBack: () => void }) {
                       <span>by {s.author}</span>
                     </div>
                     <div className="mt-2 flex justify-end gap-1.5">
+                      <button
+                        onClick={() => {
+                          setPreviewSurvey({
+                            title: s.title,
+                            author: s.author,
+                            questions: s.questions,
+                            onApply: () => handleApplyRemote(s),
+                          });
+                          setView("preview");
+                        }}
+                        className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-sm"
+                        style={{
+                          background: "transparent",
+                          color: "var(--text)",
+                          border: "1px solid var(--card-border)",
+                        }}
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        预览
+                      </button>
                       <button
                         onClick={() => handleApplyRemote(s)}
                         className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm"
@@ -917,6 +970,133 @@ export default function SurveyApp({ onBack }: { onBack: () => void }) {
             )}
           </>
         )}
+
+        {/* ===== 问卷预览 ===== */}
+        {view === "preview" && previewSurvey && (
+              <div
+                className="rounded-xl p-4 space-y-3"
+                style={{
+                  background: "var(--card)",
+                  border: "1px solid var(--card-border)",
+                }}
+              >
+                <div>
+                  <div
+                    className="font-serif text-base font-bold"
+                    style={{ color: "var(--text)" }}
+                  >
+                    📋 {previewSurvey.title}
+                  </div>
+                  <div
+                    className="mt-1 flex items-center gap-2 text-[11px]"
+                    style={{ color: "var(--text-soft)" }}
+                  >
+                    <span>共 {previewSurvey.questions.length} 题</span>
+                    <span>·</span>
+                    <span>by {previewSurvey.author}</span>
+                  </div>
+                </div>
+
+                <div
+                  className="space-y-2.5 rounded-lg p-3"
+                  style={{
+                    background:
+                      "color-mix(in srgb, var(--text) 3%, transparent)",
+                    border:
+                      "1px dashed color-mix(in srgb, var(--card-border) 70%, transparent)",
+                  }}
+                >
+                  {previewSurvey.questions.map((q, i) => (
+                    <div key={q.id} className="space-y-1">
+                      <div
+                        className="text-[13px] font-medium"
+                        style={{ color: "var(--text)" }}
+                      >
+                        <span
+                          className="mr-1.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px]"
+                          style={{
+                            background:
+                              "color-mix(in srgb, var(--accent) 18%, transparent)",
+                            color: "var(--accent)",
+                          }}
+                        >
+                          {i + 1}
+                        </span>
+                        {q.text}
+                      </div>
+                      {q.options && q.options.length > 0 ? (
+                        <div className="pl-6.5 space-y-1 ml-6">
+                          {q.options.map((opt, oi) => (
+                            <div
+                              key={oi}
+                              className="flex items-center gap-1.5 text-[12px]"
+                              style={{ color: "var(--text-soft)" }}
+                            >
+                              <span
+                                className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px]"
+                                style={{
+                                  border:
+                                    "1px solid color-mix(in srgb, var(--card-border) 80%, transparent)",
+                                  color: "var(--text-soft)",
+                                }}
+                              >
+                                {String.fromCharCode(65 + oi)}
+                              </span>
+                              {opt}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div
+                          className="ml-6 rounded-md px-2 py-1 text-[11px]"
+                          style={{
+                            color: "var(--text-soft)",
+                            background:
+                              "color-mix(in srgb, var(--card-border) 30%, transparent)",
+                          }}
+                        >
+                          ✍️ 简答题（自由填写文字回答）
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex gap-2 pt-1">
+                  <button
+                    onClick={() => {
+                      setView("list");
+                      setPreviewSurvey(null);
+                    }}
+                    className="flex flex-1 items-center justify-center gap-1 rounded-lg px-3 py-2 text-sm"
+                    style={{
+                      background: "transparent",
+                      color: "var(--text)",
+                      border: "1px solid var(--card-border)",
+                    }}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                    返回
+                  </button>
+                  {previewSurvey.onApply && (
+                    <button
+                      onClick={() => {
+                        previewSurvey.onApply?.();
+                        setPreviewSurvey(null);
+                      }}
+                      className="flex flex-1 items-center justify-center gap-1 rounded-lg px-3 py-2 text-sm"
+                      style={{
+                        background: "var(--accent)",
+                        color: "var(--card)",
+                      }}
+                    >
+                      <Send className="h-3.5 w-3.5" />
+                      直接套用
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
       </div>
     </div>
   );

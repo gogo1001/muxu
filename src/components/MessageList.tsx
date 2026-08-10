@@ -1271,13 +1271,14 @@ function MessageBubble({
     return contact?.name || "未知";
   };
 
-  const timeRowClass = `mt-0.5 w-full flex gap-1 text-[10px] px-1 ${isMine ? "justify-start" : "justify-end"}`;
+  const timeRowClass = `mt-0.5 w-full flex gap-1 text-[10px] px-1 ${isMine ? "justify-end" : "justify-start"}`;
   const timeColor = { color: "color-mix(in srgb, var(--text) 50%, transparent)" };
   const toggleEnvelope = useAppStore((s) => s.toggleEnvelope);
 
   // 对方主动写信 -> 信封简笔画样式包裹
-  const isLetter = !isMine && !!message.isAutoInitiated;
+  const isLetter = !isMine && !!message.isLetter;
   const letterOpened = !!message.envelopeOpened;
+  const letterSeal = message.letterSeal || "😊";
   if (isLetter && !letterOpened) {
     return (
       <button
@@ -1293,6 +1294,17 @@ function MessageBubble({
       >
         {/* 信封简笔画线条 SVG */}
         <div className="relative mx-auto mb-3 h-20 w-32">
+          {/* 印章emoji - 简约线条风格 */}
+          <div
+            className="absolute -right-1 -top-1 z-10 flex h-9 w-9 items-center justify-center rounded-full border-2 text-lg"
+            style={{
+              borderColor: "var(--accent)",
+              background: "color-mix(in srgb, var(--accent) 12%, var(--card))",
+              boxShadow: "0 1px 3px color-mix(in srgb, var(--accent) 30%, transparent)",
+            }}
+          >
+            {letterSeal}
+          </div>
           <svg viewBox="0 0 200 130" className="h-full w-full" fill="none" xmlns="http://www.w3.org/2000/svg">
             {/* 信封外框 */}
             <rect x="4" y="28" width="192" height="96" rx="6" stroke="var(--accent)" strokeWidth="2.2" />
@@ -1323,6 +1335,122 @@ function MessageBubble({
     );
   }
 
+  // 对方主动写信 · 已展开 → 手写信格式 + 双击返回信封
+  if (isLetter && letterOpened) {
+    const writerName = getContactNameInner(message.sender) || "对方";
+    const recipientName = myName || "我";
+    // 随机挑一款手写字体（用 message.id 取模，保持同封信字体稳定）
+    const fontVariants = ["font-ma", "font-zcool-kuaile", "font-zcool-xiaowei", "font-liu", "font-longcang", "font-kaiti"];
+    let hash = 0;
+    for (let i = 0; i < message.id.length; i++) hash = (hash * 31 + message.id.charCodeAt(i)) >>> 0;
+    const fontClass = fontVariants[hash % fontVariants.length];
+    const letterText = message.text || "";
+    return (
+      <div
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          toggleEnvelope(activeConversationId, message.id);
+        }}
+        className="animate-bubbleIn select-none cursor-pointer transition active:scale-[0.99]"
+        style={{
+          minWidth: "230px",
+          maxWidth: "280px",
+        }}
+        title="双击返回信封封面"
+      >
+        {/* 信纸：仿旧纸张 + 线条纹 + 外框 */}
+        <div
+          className="relative overflow-hidden rounded-xl border-2 px-4 py-4"
+          style={{
+            borderColor: "color-mix(in srgb, var(--accent) 45%, var(--card-border))",
+            borderStyle: "solid",
+            backgroundImage:
+              "linear-gradient(to bottom, transparent 0px, transparent calc(1.9em - 1px), color-mix(in srgb, var(--accent) 22%, transparent) calc(1.9em - 1px), color-mix(in srgb, var(--accent) 22%, transparent) 1.9em, transparent 1.9em)",
+            backgroundSize: "100% 1.9em",
+            backgroundColor: "color-mix(in srgb, #FFFDF5 60%, var(--card))",
+            backgroundPosition: "0 0.6em",
+            boxShadow:
+              "0 2px 6px color-mix(in srgb, var(--text) 8%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent)",
+          }}
+        >
+          {/* 印章emoji - 简约线条风格印在右上角 */}
+          <div
+            className="absolute -right-2 -top-2 z-10 flex h-10 w-10 rotate-12 items-center justify-center rounded-full border-2 text-xl"
+            style={{
+              borderColor: "var(--accent)",
+              background: "color-mix(in srgb, var(--accent) 10%, var(--card))",
+              boxShadow: "0 1px 4px color-mix(in srgb, var(--accent) 25%, transparent)",
+              opacity: 0.85,
+            }}
+          >
+            {letterSeal}
+          </div>
+          {/* 顶部：收信人称呼 */}
+          <div
+            className={`handwrite ${fontClass} mb-1 text-[16px] font-semibold`}
+            style={{ color: "var(--accent)" }}
+          >
+            亲爱的{recipientName}：
+          </div>
+          {/* 正文：按换行分段，每段首行缩进2字 */}
+          <div
+            className={`handwrite ${fontClass} text-[15px] leading-[1.9] whitespace-pre-wrap break-words`}
+            style={{
+              color: "#3a2e20",
+              textIndent: "2em",
+            }}
+          >
+            {letterText}
+          </div>
+          {/* 署名：写信人 + 日期行 */}
+          <div className={`handwrite ${fontClass} mt-3 text-right text-[14px]`} style={{ color: "#3a2e20" }}>
+            <div>……{writerName}</div>
+            <div
+              className="mt-0.5 text-[11px]"
+              style={{ color: "color-mix(in srgb, var(--text-soft) 75%, transparent)" }}
+            >
+              {new Date(message.timestamp).toLocaleDateString("zh-CN", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
+            </div>
+          </div>
+          {/* 折角印章小点缀 */}
+          <div
+            className="pointer-events-none absolute -bottom-1 -right-1 h-10 w-10 rotate-12 opacity-85"
+            aria-hidden
+          >
+            <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path
+                d="M20 14 C 17 10, 12 12, 12 17 C 12 22, 20 25, 20 25 C 20 25, 28 22, 28 17 C 28 12, 23 10, 20 14 Z"
+                fill="color-mix(in srgb, var(--accent) 85%, transparent)"
+                opacity="0.15"
+              />
+              <text
+                x="20"
+                y="22"
+                textAnchor="middle"
+                fontSize="9"
+                fontWeight="bold"
+                fill="color-mix(in srgb, var(--accent) 75%, transparent)"
+                style={{ fontFamily: "serif" }}
+              >
+                信
+              </text>
+            </svg>
+          </div>
+        </div>
+        <div className="mt-1.5 text-center text-[10px]" style={{ color: "var(--text-soft)" }}>
+          💡 双击卡片可返回信封封面
+        </div>
+        <div className={timeRowClass} style={{ ...timeColor, marginTop: "4px" }}>
+          <span>{time}</span>
+        </div>
+      </div>
+    );
+  }
+
   const handlePlayMusic = () => {
     if (!message.music) return;
     const idx = songs.findIndex((s) => s.title === message.music!.title && s.url === message.music!.url);
@@ -1347,11 +1475,13 @@ function MessageBubble({
             display: "block",
           }}
         />
-        <div className={timeRowClass} style={timeColor}>
-          <span>{time}</span>
-          {showRead && <span style={{ color: "var(--text-soft)" }}>已读</span>}
-          {showReadIgnored && <span style={{ color: "#ef4444" }}>已读不回</span>}
-        </div>
+        {isMine && (
+          <div className={timeRowClass} style={timeColor}>
+            <span>{time}</span>
+            {showRead && <span style={{ color: "var(--text-soft)" }}>已读</span>}
+            {showReadIgnored && <span style={{ color: "#ef4444" }}>已读不回</span>}
+          </div>
+        )}
       </>
     );
   }
@@ -1386,11 +1516,13 @@ function MessageBubble({
             [表情包]
           </div>
         )}
-        <div className={timeRowClass} style={timeColor}>
-          <span>{time}</span>
-          {showRead && <span style={{ color: "var(--text-soft)" }}>已读</span>}
-          {showReadIgnored && <span style={{ color: "#ef4444" }}>已读不回</span>}
-        </div>
+        {isMine && (
+          <div className={timeRowClass} style={timeColor}>
+            <span>{time}</span>
+            {showRead && <span style={{ color: "var(--text-soft)" }}>已读</span>}
+            {showReadIgnored && <span style={{ color: "#ef4444" }}>已读不回</span>}
+          </div>
+        )}
       </>
     );
   }
@@ -1428,11 +1560,13 @@ function MessageBubble({
             </div>
           </div>
         </div>
-        <div className={timeRowClass} style={timeColor}>
-          <span>{time}</span>
-          {showRead && <span style={{ color: "var(--text-soft)" }}>已读</span>}
-          {showReadIgnored && <span style={{ color: "#ef4444" }}>已读不回</span>}
-        </div>
+        {isMine && (
+          <div className={timeRowClass} style={timeColor}>
+            <span>{time}</span>
+            {showRead && <span style={{ color: "var(--text-soft)" }}>已读</span>}
+            {showReadIgnored && <span style={{ color: "#ef4444" }}>已读不回</span>}
+          </div>
+        )}
       </div>
     );
   }
@@ -1516,11 +1650,13 @@ function MessageBubble({
             💬 留言：{shop.leaveMessage}
           </div>
         )}
-        <div className={timeRowClass.replace("px-1", "px-0")} style={timeColor}>
-          <span>{time}</span>
-          {showRead && <span style={{ color: "var(--text-soft)" }}>已读</span>}
-          {showReadIgnored && <span style={{ color: "#ef4444" }}>已读不回</span>}
-        </div>
+        {isMine && (
+          <div className={timeRowClass.replace("px-1", "px-0")} style={timeColor}>
+            <span>{time}</span>
+            {showRead && <span style={{ color: "var(--text-soft)" }}>已读</span>}
+            {showReadIgnored && <span style={{ color: "#ef4444" }}>已读不回</span>}
+          </div>
+        )}
       </div>
     );
   }
@@ -1822,11 +1958,13 @@ function MessageBubble({
           </div>
         )}
 
-        <div className={timeRowClass.replace("px-1", "px-0")} style={{ ...timeColor, color: "color-mix(in srgb, var(--text) 40%, transparent)", marginTop: "10px" }}>
-          <span>{time}</span>
-          {showRead && <span style={{ color: "var(--text-soft)" }}>已读</span>}
-          {showReadIgnored && <span style={{ color: "#ef4444" }}>已读不回</span>}
-        </div>
+        {isMine && (
+          <div className={timeRowClass.replace("px-1", "px-0")} style={{ ...timeColor, color: "color-mix(in srgb, var(--text) 40%, transparent)", marginTop: "10px" }}>
+            <span>{time}</span>
+            {showRead && <span style={{ color: "var(--text-soft)" }}>已读</span>}
+            {showReadIgnored && <span style={{ color: "#ef4444" }}>已读不回</span>}
+          </div>
+        )}
       </div>
     );
   }
@@ -1888,11 +2026,13 @@ function MessageBubble({
           🌸 心情 · {message.moodNote}
         </div>
       )}
-      <div className={timeRowClass} style={timeColor}>
-        <span>{time}</span>
-        {showRead && <span style={{ color: "var(--text-soft)" }}>已读</span>}
-        {showReadIgnored && <span style={{ color: "#ef4444" }}>已读不回</span>}
-      </div>
+      {isMine && (
+        <div className={timeRowClass} style={timeColor}>
+          <span>{time}</span>
+          {showRead && <span style={{ color: "var(--text-soft)" }}>已读</span>}
+          {showReadIgnored && <span style={{ color: "#ef4444" }}>已读不回</span>}
+        </div>
+      )}
     </>
   );
 }
@@ -1907,7 +2047,7 @@ function SurveyBubble({ message, time, bgColor, showRead, showReadIgnored, isMin
     ? s.answers[0].answer
     : null;
 
-  const timeRowClass = `mt-1 w-full flex gap-1 text-[10px] px-0 ${isMine ? "justify-start" : "justify-end"}`;
+  const timeRowClass = `mt-1 w-full flex gap-1 text-[10px] px-0 ${isMine ? "justify-end" : "justify-start"}`;
   const timeColor = { color: "color-mix(in srgb, var(--text) 50%, transparent)" };
 
   return (
@@ -1964,11 +2104,13 @@ function SurveyBubble({ message, time, bgColor, showRead, showReadIgnored, isMin
         </div>
       )}
 
-      <div className={timeRowClass} style={timeColor}>
-        <span>{time}</span>
-        {showRead && <span style={{ color: "var(--text-soft)" }}>已读</span>}
-        {showReadIgnored && <span style={{ color: "#ef4444" }}>已读不回</span>}
-      </div>
+      {isMine && (
+        <div className={timeRowClass} style={timeColor}>
+          <span>{time}</span>
+          {showRead && <span style={{ color: "var(--text-soft)" }}>已读</span>}
+          {showReadIgnored && <span style={{ color: "#ef4444" }}>已读不回</span>}
+        </div>
+      )}
     </div>
   );
 }
@@ -2023,7 +2165,7 @@ function RPSBubble({
     return "color-mix(in srgb, var(--text) 70%, transparent)";
   };
 
-  const timeRowClass = `mt-0.5 w-full flex flex-wrap gap-1 text-[10px] ${isMine ? "pl-1 justify-start" : "pr-1 justify-end"}`;
+  const timeRowClass = `mt-0.5 w-full flex flex-wrap gap-1 text-[10px] ${isMine ? "pr-1 justify-end" : "pl-1 justify-start"}`;
   const timeColor = { color: "color-mix(in srgb, var(--text) 50%, transparent)" };
 
   return (
@@ -2070,11 +2212,13 @@ function RPSBubble({
             {resultText()}
           </div>
         </div>
-        <div className={timeRowClass} style={timeColor}>
-          <span>{time}</span>
-          {showRead && <span style={{ color: "var(--text-soft)" }}>已读</span>}
-          {showReadIgnored && <span style={{ color: "#ef4444" }}>已读不回</span>}
-        </div>
+        {isMine && (
+          <div className={timeRowClass} style={timeColor}>
+            <span>{time}</span>
+            {showRead && <span style={{ color: "var(--text-soft)" }}>已读</span>}
+            {showReadIgnored && <span style={{ color: "#ef4444" }}>已读不回</span>}
+          </div>
+        )}
       </div>
       {!isLeft && (
         <div className="flex w-9 shrink-0 justify-center">
@@ -2127,7 +2271,7 @@ function PollBubble({
       .map(([id]) => getContactName(id));
   };
 
-  const timeRowClass = `mt-0.5 w-full flex flex-wrap gap-1 text-[10px] ${isMine ? "pl-1 justify-start" : "pr-1 justify-end"}`;
+  const timeRowClass = `mt-0.5 w-full flex flex-wrap gap-1 text-[10px] ${isMine ? "pr-1 justify-end" : "pl-1 justify-start"}`;
   const timeColor = { color: "color-mix(in srgb, var(--text) 50%, transparent)" };
 
   return (
@@ -2189,11 +2333,13 @@ function PollBubble({
             );
           })}
         </div>
-        <div className={timeRowClass} style={timeColor}>
-          <span>{time}</span>
-          {showRead && <span style={{ color: "var(--text-soft)" }}>已读</span>}
-          {showReadIgnored && <span style={{ color: "#ef4444" }}>已读不回</span>}
-        </div>
+        {isMine && (
+          <div className={timeRowClass} style={timeColor}>
+            <span>{time}</span>
+            {showRead && <span style={{ color: "var(--text-soft)" }}>已读</span>}
+            {showReadIgnored && <span style={{ color: "#ef4444" }}>已读不回</span>}
+          </div>
+        )}
       </div>
       {!isLeft && (
         <div className="flex w-9 shrink-0 justify-center">

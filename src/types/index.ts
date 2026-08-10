@@ -45,6 +45,8 @@ export interface Message {
   quoteSender?: string;
   recalled?: boolean;
   isAutoInitiated?: boolean;
+  isLetter?: boolean;
+  letterSeal?: string;
   envelopeOpened?: boolean;
   survey?: {
     surveyId: string;
