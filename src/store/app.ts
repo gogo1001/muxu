@@ -4798,8 +4798,11 @@ export const useAppStore = create<
               const cardCount = 5 + Math.floor(Math.random() * 4);
               const cards = st.pickRandomCards(contactId, "chat", cardCount);
               if (cards.length === 0) return;
-              const letterLines = cards.map((c) => c.content);
-              const letterText = letterLines.join("\n");
+              // 每张字卡合并为 "名称\n内容" 格式，多张卡之间用空行分隔
+              const letterText = cards
+                .map((c) => (c.name && c.content ? `${c.name}\n${c.content}` : c.name || c.content || ""))
+                .filter(Boolean)
+                .join("\n\n");
               const sealEmoji = LETTER_SEAL_EMOJIS[Math.floor(Math.random() * LETTER_SEAL_EMOJIS.length)];
               const letterMsg: Message = {
                 id: uid("letter"),

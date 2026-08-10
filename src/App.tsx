@@ -189,54 +189,6 @@ export default function App() {
     });
   }, []);
 
-  // 对方主动写信：每30分钟给每段私聊4%概率随机发 5-9 条字卡合并成一条消息（聊天模块）
-  useEffect(() => {
-    const checkAndSendAutoLetters = () => {
-      const state = useAppStore.getState();
-      state.conversations.forEach((conv) => {
-        if (conv.type !== "private") return;
-        if (Math.random() >= 0.04) return; // 4% 概率
-        const contactId = conv.memberIds[0];
-        const contact = state.contacts.find((c) => c.id === contactId);
-        if (!contact || !contact.cards?.chat || contact.cards.chat.length === 0) return;
-
-        const chatCards = contact.cards.chat;
-        const count = 5 + Math.floor(Math.random() * 5); // 5-9 条
-        const shuffled = [...chatCards].sort(() => Math.random() - 0.5);
-        const picks = shuffled.slice(0, Math.min(count, chatCards.length));
-
-        if (picks.length === 0) return;
-
-        // 合并成一条消息
-        const combinedText = picks
-          .map((card) => {
-            if (card.name && card.content) return `${card.name}\n${card.content}`;
-            return card.name || card.content || "";
-          })
-          .filter(Boolean)
-          .join("\n\n");
-
-        const msg = {
-          id: `auto-letter-${Date.now()}`,
-          sender: contactId,
-          type: "text" as const,
-          text: combinedText,
-          timestamp: Date.now(),
-          isAutoInitiated: true,
-        };
-
-        useAppStore.setState((s) => ({
-          conversations: s.conversations.map((c) =>
-            c.id === conv.id ? { ...c, messages: [...c.messages, msg] } : c
-          ),
-        }));
-      });
-    };
-
-    const intervalId = window.setInterval(checkAndSendAutoLetters, 30 * 60 * 1000);
-    return () => window.clearInterval(intervalId);
-  }, []);
-
   // ========== 后台保活机制 ==========
   // 问题：浏览器把标签页切到后台后，setTimeout/setInterval 会被节流（延迟到 1 秒或更久）
   // 导致长时间后台后，定时消息、信件、红包等生成失效。
