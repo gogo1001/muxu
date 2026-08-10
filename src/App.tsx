@@ -237,6 +237,98 @@ export default function App() {
     return () => window.clearInterval(intervalId);
   }, []);
 
+  // ========== 后台保活机制 ==========
+  // 问题：浏览器把标签页切到后台后，setTimeout/setInterval 会被节流（延迟到 1 秒或更久）
+  // 导致长时间后台后，定时消息、信件、红包等生成失效。
+  // 方案：
+  // 1) 每 15 秒用 "可靠 tick"（setInterval + Web Worker 思路），检查当前时间与上次 tick 的差值
+  //    如果跳变过大（> 2 分钟），说明浏览器把 tab 休眠过，触发一次 "补发"
+  // 2) 监听 visibilitychange / focus：从后台切回来立即检查并补发
+  // 3) 尝试申请 WakeLock，阻止屏幕/后台休眠（失败不影响流程）
+  useEffect(() => {
+    const BACKGROUND_KEEPALIVE_KEY = "__bg_keepalive_last_tick__";
+    const RECOVERY_THRESHOLD_MS = 2 * 60 * 1000; // 跳变 > 2 分钟认为被休眠过
+
+    let lastTickAt = Date.now();
+
+    // 核心：当从后台回来/检测到时间跳变时，告诉 store 里的定时器触发一次"检查"
+    // store 内部的定时器是 setTimeout 递归调度，通过 visibilitychange + tick 校准可以保证触发
+    const forceStoreTick = () => {
+      // store 里每个定时器都是"下次时间到 -> 触发 -> 再 setTimeout"
+      // 这里派发一个自定义事件，store 初始化时监听；触发后立即做一次概率检查
+      try {
+        window.dispatchEvent(new CustomEvent("background-recovery-tick"));
+      } catch {
+        // old browsers, ignore
+      }
+    };
+
+    const tick = () => {
+      const now = Date.now();
+      const diff = now - lastTickAt;
+      lastTickAt = now;
+
+      // 记录到 sessionStorage，跨多 tab 也能校准（可选，目前单 tab）
+      try { sessionStorage.setItem(BACKGROUND_KEEPALIVE_KEY, String(now)); } catch {}
+
+      if (diff > RECOVERY_THRESHOLD_MS) {
+        // 后台被休眠过，触发 store 里的各种定时器立即做一次检查
+        forceStoreTick();
+      }
+    };
+
+    // 主定时器：15s 一次，即使后台被节流成 1min 一次也能检测跳变
+    const tickTimer = window.setInterval(tick, 15 * 1000);
+
+    const handleVisibility = () => {
+      if (!document.hidden) {
+        // 从后台切回来，立即 tick + 派发补发
+        tick();
+        forceStoreTick();
+      }
+    };
+
+    const handleFocus = () => {
+      tick();
+      forceStoreTick();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("focus", handleFocus);
+
+    // Wake Lock（仅在支持的浏览器，且页面可见时申请；切后台会自动释放，回来时重新申请）
+    let wakeLock: any = null;
+    const requestWakeLock = async () => {
+      try {
+        const anyNav = navigator as any;
+        if ("wakeLock" in anyNav && "request" in anyNav.wakeLock) {
+          wakeLock = await anyNav.wakeLock.request("screen");
+          wakeLock.addEventListener?.("release", () => {
+            // 被释放后，如果页面还可见就再申请一次
+            if (!document.hidden) {
+              setTimeout(requestWakeLock, 1000);
+            }
+          });
+        }
+      } catch {
+        // 不支持或用户拒绝，忽略
+      }
+    };
+    requestWakeLock();
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) requestWakeLock();
+    });
+
+    return () => {
+      window.clearInterval(tickTimer);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("focus", handleFocus);
+      if (wakeLock?.release) {
+        try { wakeLock.release(); } catch {}
+      }
+    };
+  }, []);
+
   return (
     <>
       <ThemeApplier />

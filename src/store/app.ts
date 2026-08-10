@@ -4465,38 +4465,131 @@ export const useAppStore = create<
         };
         setupBatteryUpdate();
 
+        // ========= 后台保活：可靠定时器工具 =========
+        // 浏览器切后台后 setTimeout/setInterval 会被严重节流，
+        // 这里封装一个基于"时间戳 + 监听 recovery 事件"的可靠调度器：
+        //  - 每次触发后把"下次应该触发的时间戳"记录下来
+        //  - 收到 recovery tick 时，如果"应该触发时间 <= 现在"就立即补一次
+        //  - 补完后重新计算下次触发时间
+        type ReliableSchedule = {
+          // 返回值：可以调用以立即尝试触发（用于 recovery tick）
+          tryTriggerNow: () => void;
+          // 取消调度
+          cancel: () => void;
+        };
+
+        const createReliableScheduler = (
+          label: string,
+          workFn: () => void,
+          nextDelayMs: () => number, // 每次触发后计算下次间隔
+          opts?: { fireProbability?: number } // 额外：触发时再做一次概率判断
+        ): ReliableSchedule => {
+          const storageKey = `__sched_next_${label}__`;
+          let timerId: number | null = null;
+          let cancelled = false;
+
+          const readNextAt = (): number | null => {
+            try {
+              const v = sessionStorage.getItem(storageKey);
+              return v ? parseInt(v, 10) || null : null;
+            } catch {
+              return null;
+            }
+          };
+          const writeNextAt = (ts: number) => {
+            try { sessionStorage.setItem(storageKey, String(ts)); } catch {}
+          };
+          const clearNextAt = () => {
+            try { sessionStorage.removeItem(storageKey); } catch {}
+          };
+
+          const run = () => {
+            const prob = opts?.fireProbability;
+            if (prob === undefined || Math.random() < prob) {
+              try { workFn(); } catch {}
+            }
+            const delay = Math.max(1000, nextDelayMs());
+            const nextAt = Date.now() + delay;
+            writeNextAt(nextAt);
+            if (!cancelled) {
+              // 重新挂一个超时
+              if (timerId !== null) window.clearTimeout(timerId);
+              timerId = window.setTimeout(run, delay);
+            }
+          };
+
+          const tryTriggerNow = () => {
+            if (cancelled) return;
+            const nextAt = readNextAt();
+            const now = Date.now();
+            // 如果还没到"应该触发"的时间，就等正常 setTimeout 自己触发
+            // 但是由于后台可能延迟了"本该到期"的工作，这里补一下
+            // 另外：为了避免 recovery 每次都 100% 触发概率任务（如 sendMail），
+            // 对于有 fireProbability 的调度，补触发也走相同概率
+            if (nextAt === null || now >= nextAt) {
+              // 到时间了，补触发
+              if (timerId !== null) { window.clearTimeout(timerId); timerId = null; }
+              run();
+            }
+          };
+
+          const onRecovery = () => { tryTriggerNow(); };
+          if (typeof window !== "undefined") {
+            window.addEventListener("background-recovery-tick", onRecovery);
+          }
+
+          // 启动首次
+          const initialDelay = Math.max(1000, nextDelayMs());
+          const initialNext = Date.now() + initialDelay;
+          writeNextAt(initialNext);
+          timerId = window.setTimeout(run, initialDelay);
+
+          return {
+            tryTriggerNow,
+            cancel: () => {
+              cancelled = true;
+              if (timerId !== null) { window.clearTimeout(timerId); timerId = null; }
+              clearNextAt();
+              if (typeof window !== "undefined") {
+                window.removeEventListener("background-recovery-tick", onRecovery);
+              }
+            },
+          };
+        };
+
         // 商店推荐定时器 - 每10分钟5%概率对方送礼物给我
         const setupShopRecommend = () => {
-          const interval = 10 * 60 * 1000;
-          const trigger = () => {
-            if (Math.random() < 0.05) {
-              const state = useAppStore.getState();
-              const myName = state.beauty.myName;
-              for (const conv of state.conversations) {
-                if (conv.type !== "private") continue;
-                const contactId = conv.memberIds[0];
-                const data = state.shopData[contactId];
-                if (!data || data.products.length === 0) continue;
-                const product = data.products[Math.floor(Math.random() * data.products.length)];
-                // 余额够就扣对方 herBalance，不够也照样送（表现心意）
-                let updated = false;
-                if (data.herBalance >= product.price) {
-                  useAppStore.setState((s) => ({
-                    shopData: {
-                      ...s.shopData,
-                      [contactId]: {
-                        ...data,
-                        herBalance: data.herBalance - product.price,
-                        purchases: [
-                          ...data.purchases,
-                          {
-                            id: uid("purchase"),
-                            productId: product.id,
-                            productName: product.name,
-                            price: product.price,
-                            emoji: product.emoji || "🎁",
-                            buyer: "her",
-                            timestamp: Date.now(),
+          createReliableScheduler(
+            "shopRecommend",
+            () => {
+              {
+                const state = useAppStore.getState();
+                const myName = state.beauty.myName;
+                for (const conv of state.conversations) {
+                  if (conv.type !== "private") continue;
+                  const contactId = conv.memberIds[0];
+                  const data = state.shopData[contactId];
+                  if (!data || data.products.length === 0) continue;
+                  const product = data.products[Math.floor(Math.random() * data.products.length)];
+                  // 余额够就扣对方 herBalance，不够也照样送（表现心意）
+                  let updated = false;
+                  if (data.herBalance >= product.price) {
+                    useAppStore.setState((s) => ({
+                      shopData: {
+                        ...s.shopData,
+                        [contactId]: {
+                          ...data,
+                          herBalance: data.herBalance - product.price,
+                          purchases: [
+                            ...data.purchases,
+                            {
+                              id: uid("purchase"),
+                              productId: product.id,
+                              productName: product.name,
+                              price: product.price,
+                              emoji: product.emoji || "🎁",
+                              buyer: "her",
+                              timestamp: Date.now(),
                           },
                         ],
                       },
@@ -4546,16 +4639,17 @@ export const useAppStore = create<
                 });
               }
             }
-            window.setTimeout(trigger, interval);
-          };
-          window.setTimeout(trigger, interval);
+          },
+            () => 10 * 60 * 1000, // 每10分钟
+            { fireProbability: 0.05 } // 5% 概率
+          );
         };
 
         // 红包定时器 - 每8分钟4%概率发红包
         const setupRedPacket = () => {
-          const interval = 8 * 60 * 1000; // 8分钟
-          const trigger = () => {
-            if (Math.random() < 0.04) {
+          createReliableScheduler(
+            "redPacket",
+            () => {
               const state = useAppStore.getState();
               for (const conv of state.conversations) {
                 if (conv.type !== "private") continue;
@@ -4587,10 +4681,10 @@ export const useAppStore = create<
                   ),
                 }));
               }
-            }
-            window.setTimeout(trigger, interval);
-          };
-          window.setTimeout(trigger, interval);
+            },
+            () => 8 * 60 * 1000, // 每 8 分钟
+            { fireProbability: 0.04 } // 4% 概率
+          );
         };
 
         setupShopRecommend();
@@ -4598,136 +4692,135 @@ export const useAppStore = create<
 
         // 主动发消息定时器：按 ChatSettings.autoMessage / autoIntervalMin/Max 控制
         const setupAutoChatMessage = () => {
-          const state0 = useAppStore.getState();
-          const chat = state0.chat;
-          if (!chat.autoMessage) {
-            // 关闭时，60 秒后再检查是否被用户开启
-            window.setTimeout(setupAutoChatMessage, 60 * 1000);
-            return;
-          }
-          const minMs = Math.max(1, chat.autoIntervalMin) * 60 * 1000;
-          const maxMs = Math.max(minMs, chat.autoIntervalMax) * 60 * 1000;
-          const delay = minMs + Math.random() * (maxMs - minMs);
+          // 注意：autoMessage 开关/间隔是用户动态设置的，所以我们把"下次间隔"动态计算
+          createReliableScheduler(
+            "autoChatMessage",
+            () => {
+              const st = useAppStore.getState();
+              const ch = st.chat;
+              // 开关可能中途关闭，关闭时不触发消息生成，下次调度继续检查
+              if (!ch.autoMessage) return;
+              if (st.contacts.length === 0 || st.conversations.length === 0) return;
 
-          window.setTimeout(() => {
-            const st = useAppStore.getState();
-            const ch = st.chat;
-            if (ch.autoMessage && st.contacts.length > 0 && st.conversations.length > 0) {
               const privateConvs = st.conversations.filter((c) => c.type === "private" && c.memberIds.length > 0);
               const convs = privateConvs.length > 0 ? privateConvs : st.conversations;
               const targetConv = convs[Math.floor(Math.random() * convs.length)];
-              if (targetConv) {
-                const contactId = targetConv.memberIds[0];
-                const stickers = st.stickers;
-                const useSticker = stickers.length > 0 && Math.random() < 0.1;
+              if (!targetConv) return;
 
-                let msg: Message | null = null;
-                if (useSticker) {
-                  const last3Stickers = (targetConv.messages || [])
-                    .filter(m => m.sender === contactId && m.isAutoInitiated && m.type === "sticker")
-                    .slice(-3)
-                    .map(m => m.sticker)
-                    .filter(Boolean) as string[];
+              const contactId = targetConv.memberIds[0];
+              const stickers = st.stickers;
+              const useSticker = stickers.length > 0 && Math.random() < 0.1;
 
-                  let sticker = stickers[Math.floor(Math.random() * stickers.length)];
-                  for (let t = 0; last3Stickers.includes(sticker.image) && t < 4; t++) {
-                    sticker = stickers[Math.floor(Math.random() * stickers.length)];
-                  }
-                  msg = {
-                    id: uid("her"),
-                    sender: contactId,
-                    type: "sticker",
-                    sticker: sticker.image,
-                    timestamp: Date.now(),
-                    isAutoInitiated: true,
-                  };
-                } else {
-                  const last3Texts = (targetConv.messages || [])
-                    .filter(m => m.sender === contactId && m.isAutoInitiated && m.type === "text")
-                    .slice(-3)
-                    .map(m => m.text);
+              let msg: Message | null = null;
+              if (useSticker) {
+                const last3Stickers = (targetConv.messages || [])
+                  .filter(m => m.sender === contactId && m.isAutoInitiated && m.type === "sticker")
+                  .slice(-3)
+                  .map(m => m.sticker)
+                  .filter(Boolean) as string[];
 
-                  let card = st.pickRandomCard(contactId, "chat");
-                  for (let t = 0; card && last3Texts.includes(card.content) && t < 4; t++) {
-                    card = st.pickRandomCard(contactId, "chat");
-                  }
-                  if (!card) {
-                    setupAutoChatMessage();
-                    return;
-                  }
-                  msg = {
-                    id: uid("her"),
-                    sender: contactId,
-                    type: "text",
-                    text: card.content,
-                    card,
-                    timestamp: Date.now(),
-                    isAutoInitiated: true,
-                  };
+                let sticker = stickers[Math.floor(Math.random() * stickers.length)];
+                for (let t = 0; last3Stickers.includes(sticker.image) && t < 4; t++) {
+                  sticker = stickers[Math.floor(Math.random() * stickers.length)];
                 }
+                msg = {
+                  id: uid("her"),
+                  sender: contactId,
+                  type: "sticker",
+                  sticker: sticker.image,
+                  timestamp: Date.now(),
+                  isAutoInitiated: true,
+                };
+              } else {
+                const last3Texts = (targetConv.messages || [])
+                  .filter(m => m.sender === contactId && m.isAutoInitiated && m.type === "text")
+                  .slice(-3)
+                  .map(m => m.text);
 
-                if (msg) {
-                  useAppStore.setState((s) => ({
-                    conversations: s.conversations.map((c) =>
-                      c.id === targetConv.id ? { ...c, messages: [...c.messages, msg!] } : c
-                    ),
-                  }));
-                  // 主动写信内容记入备忘录（文本类型）
-                  if (msg.type === "text" && msg.text) {
-                    const st2 = useAppStore.getState();
-                    if (typeof st2.addMemo === "function") {
-                      st2.addMemo(contactId, msg.text);
-                    }
+                let card = st.pickRandomCard(contactId, "chat");
+                for (let t = 0; card && last3Texts.includes(card.content) && t < 4; t++) {
+                  card = st.pickRandomCard(contactId, "chat");
+                }
+                if (!card) {
+                  return;
+                }
+                msg = {
+                  id: uid("her"),
+                  sender: contactId,
+                  type: "text",
+                  text: card.content,
+                  card,
+                  timestamp: Date.now(),
+                  isAutoInitiated: true,
+                };
+              }
+
+              if (msg) {
+                useAppStore.setState((s) => ({
+                  conversations: s.conversations.map((c) =>
+                    c.id === targetConv.id ? { ...c, messages: [...c.messages, msg!] } : c
+                  ),
+                }));
+                // 主动写信内容记入备忘录（文本类型）
+                if (msg.type === "text" && msg.text) {
+                  const st2 = useAppStore.getState();
+                  if (typeof st2.addMemo === "function") {
+                    st2.addMemo(contactId, msg.text);
                   }
                 }
               }
+            },
+            () => {
+              // 动态读取用户设置：关闭时 60s 后再检查
+              const chat = useAppStore.getState().chat;
+              if (!chat.autoMessage) return 60 * 1000;
+              const minMs = Math.max(1, chat.autoIntervalMin) * 60 * 1000;
+              const maxMs = Math.max(minMs, chat.autoIntervalMax) * 60 * 1000;
+              return minMs + Math.random() * (maxMs - minMs);
             }
-            setupAutoChatMessage();
-          }, delay);
+          );
         };
         setupAutoChatMessage();
 
         // 信件生成定时器：每25分钟有2%概率生成一封手写信
         const LETTER_SEAL_EMOJIS = ["😊", "🥰", "😌", "🤔", "😴", "😤", "🥺", "😇", "🤗", "😏", "😎", "🤭", "😳", "😚", "😋"];
         const setupLetterGeneration = () => {
-          const LETTER_INTERVAL_MS = 25 * 60 * 1000;
-          window.setTimeout(() => {
-            const st = useAppStore.getState();
-            if (st.contacts.length > 0 && st.conversations.length > 0) {
-              if (Math.random() < 0.02) {
-                const privateConvs = st.conversations.filter((c) => c.type === "private" && c.memberIds.length > 0);
-                const convs = privateConvs.length > 0 ? privateConvs : st.conversations;
-                const targetConv = convs[Math.floor(Math.random() * convs.length)];
-                if (targetConv) {
-                  const contactId = targetConv.memberIds[0];
-                  const cardCount = 5 + Math.floor(Math.random() * 4);
-                  const cards = st.pickRandomCards(contactId, "chat", cardCount);
-                  if (cards.length > 0) {
-                    const letterLines = cards.map((c) => c.content);
-                    const letterText = letterLines.join("\n");
-                    const sealEmoji = LETTER_SEAL_EMOJIS[Math.floor(Math.random() * LETTER_SEAL_EMOJIS.length)];
-                    const letterMsg: Message = {
-                      id: uid("letter"),
-                      sender: contactId,
-                      type: "text",
-                      text: letterText,
-                      timestamp: Date.now(),
-                      isAutoInitiated: true,
-                      isLetter: true,
-                      letterSeal: sealEmoji,
-                      envelopeOpened: false,
-                    };
-                    useAppStore.setState((s) => ({
-                      conversations: s.conversations.map((c) =>
-                        c.id === targetConv.id ? { ...c, messages: [...c.messages, letterMsg] } : c
-                      ),
-                    }));
-                  }
-                }
-              }
-            }
-            setupLetterGeneration();
-          }, LETTER_INTERVAL_MS);
+          createReliableScheduler(
+            "letterGeneration",
+            () => {
+              const st = useAppStore.getState();
+              if (st.contacts.length === 0 || st.conversations.length === 0) return;
+              const privateConvs = st.conversations.filter((c) => c.type === "private" && c.memberIds.length > 0);
+              const convs = privateConvs.length > 0 ? privateConvs : st.conversations;
+              const targetConv = convs[Math.floor(Math.random() * convs.length)];
+              if (!targetConv) return;
+              const contactId = targetConv.memberIds[0];
+              const cardCount = 5 + Math.floor(Math.random() * 4);
+              const cards = st.pickRandomCards(contactId, "chat", cardCount);
+              if (cards.length === 0) return;
+              const letterLines = cards.map((c) => c.content);
+              const letterText = letterLines.join("\n");
+              const sealEmoji = LETTER_SEAL_EMOJIS[Math.floor(Math.random() * LETTER_SEAL_EMOJIS.length)];
+              const letterMsg: Message = {
+                id: uid("letter"),
+                sender: contactId,
+                type: "text",
+                text: letterText,
+                timestamp: Date.now(),
+                isAutoInitiated: true,
+                isLetter: true,
+                letterSeal: sealEmoji,
+                envelopeOpened: false,
+              };
+              useAppStore.setState((s) => ({
+                conversations: s.conversations.map((c) =>
+                  c.id === targetConv.id ? { ...c, messages: [...c.messages, letterMsg] } : c
+                ),
+              }));
+            },
+            () => 25 * 60 * 1000, // 每 25 分钟
+            { fireProbability: 0.02 } // 2% 概率
+          );
         };
         setupLetterGeneration();
       },

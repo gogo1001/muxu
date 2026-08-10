@@ -1510,26 +1510,63 @@ export default function FlightChessPage() {
               const isMe = msg.color === "red";
 
               return (
-                <div key={msg.id} className={`flex gap-2 ${isMe ? "flex-row-reverse" : ""}`}>
+                // 我发的消息：整体靠右 justify-end，头像在右，气泡在头像左边；
+                // 对方消息：整体靠左 justify-start，头像在左，气泡在头像右边。
+                // 避免某些浏览器在 flex-row-reverse 下把顺序/对齐搞反。
+                <div
+                  key={msg.id}
+                  className={`flex w-full gap-2 items-end ${
+                    isMe ? "justify-end" : "justify-start"
+                  }`}
+                >
+                  {!isMe ? (
+                    <div
+                      className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold overflow-hidden border-2"
+                      style={{
+                        backgroundColor: COLORS[msg.color].bg,
+                        borderColor: COLORS[msg.color].border,
+                      }}
+                    >
+                      {info.avatarImage ? (
+                        <img src={info.avatarImage} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <span style={{ color: COLORS[msg.color].text, fontSize: "10px" }}>{info.avatarText}</span>
+                      )}
+                    </div>
+                  ) : null}
+
                   <div
-                    className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold overflow-hidden border-2"
-                    style={{
-                      backgroundColor: COLORS[msg.color].bg,
-                      borderColor: COLORS[msg.color].border,
-                    }}
-                  >
-                    {info.avatarImage ? (
-                      <img src={info.avatarImage} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <span style={{ color: COLORS[msg.color].text, fontSize: "10px" }}>{info.avatarText}</span>
-                    )}
-                  </div>
-                  <div
-                    className={`max-w-[70%] px-2.5 py-1.5 rounded-2xl text-xs ${isMe ? "bg-purple-500 text-white" : "bg-white text-gray-800"}`}
-                    style={!isMe ? { backgroundColor: COLORS[msg.color].light } : {}}
+                    className={`max-w-[70%] px-2.5 py-1.5 rounded-2xl text-xs ${
+                      isMe ? "bg-purple-500" : "bg-white text-gray-800"
+                    }`}
+                    style={
+                      isMe
+                        ? {
+                            // 强制我发送的消息气泡文字为黑色，避免某些浏览器/系统把 text-white 继承出问题导致白字看不清
+                            color: "#000000",
+                            WebkitTextFillColor: "#000000",
+                          }
+                        : { backgroundColor: COLORS[msg.color].light, color: "#1f2937" }
+                    }
                   >
                     {msg.text}
                   </div>
+
+                  {isMe ? (
+                    <div
+                      className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold overflow-hidden border-2"
+                      style={{
+                        backgroundColor: COLORS[msg.color].bg,
+                        borderColor: COLORS[msg.color].border,
+                      }}
+                    >
+                      {info.avatarImage ? (
+                        <img src={info.avatarImage} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <span style={{ color: COLORS[msg.color].text, fontSize: "10px" }}>{info.avatarText}</span>
+                      )}
+                    </div>
+                  ) : null}
                 </div>
               );
             })}
