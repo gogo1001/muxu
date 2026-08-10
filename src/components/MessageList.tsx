@@ -87,6 +87,10 @@ export default function MessageList() {
   const hidePetAtMessage = useAppStore((s) => s.hidePetAtMessage);
   const readBadgeEnabled = useAppStore((s) => s.chat.readBadgeEnabled);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const isAtBottomRef = useRef(true); // 当前是否在底部附近（scroll 时更新）
+  const lastMyMessageIdRef = useRef<string | null>(null); // 我最新发的消息 id，用于在用户看旧消息时也自动滚到底部
+  const [showNewMsgBtn, setShowNewMsgBtn] = useState(false); // "跳到新消息"按钮
+  const [unreadNewCount, setUnreadNewCount] = useState(0); // 未读新消息计数
   const [contextMenu, setContextMenu] = useState<{ messageId: string; x: number; y: number; sender: string } | null>(null);
   const [tomatoPicker, setTomatoPicker] = useState<{ senderId: string; msgId: string; x: number; y: number } | null>(null);
   const [tomatoMsgCollapsed, setTomatoMsgCollapsed] = useState(true);
@@ -216,10 +220,81 @@ export default function MessageList() {
     };
   }, [showTomatoPicker]);
 
+  // ===== 智能滚动：用户在看旧消息时收到新消息不自动打断 =====
+  // 判定阈值：距离底部 <= 80px 算"在底部附近"
+  const BOTTOM_THRESHOLD_PX = 80;
+
+  const scrollToBottomSmooth = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, []);
+
+  const scrollToBottomImmediate = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, []);
+
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const atBottom = dist <= BOTTOM_THRESHOLD_PX;
+    isAtBottomRef.current = atBottom;
+    if (atBottom) {
+      // 已经滚到底部，隐藏按钮，清零计数
+      setShowNewMsgBtn(false);
+      setUnreadNewCount(0);
+    }
+  }, []);
+
+  // 消息变化时判断是否自动滚动
   useEffect(() => {
     const el = scrollRef.current;
+    if (!el) {
+      lastMyMessageIdRef.current = messages.length > 0 ? messages[messages.length - 1].id : null;
+      return;
+    }
+    // 找出这条 messages 数组里我最新发的消息
+    let latestMineId: string | null = null;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].sender === "me") { latestMineId = messages[i].id; break; }
+    }
+    // 我新发消息了 → 无论在哪都必须自动滚到底部
+    const iJustSent = latestMineId !== null && lastMyMessageIdRef.current !== latestMineId;
+    lastMyMessageIdRef.current = latestMineId;
+
+    if (iJustSent) {
+      scrollToBottomImmediate();
+      setShowNewMsgBtn(false);
+      setUnreadNewCount(0);
+      return;
+    }
+    // isFlipping 翻转视图也滚到底部
+    if (isFlipping) {
+      scrollToBottomImmediate();
+      return;
+    }
+    // 只有本来就"在底部附近"才自动滚到底部，否则保留用户当前位置
+    if (isAtBottomRef.current) {
+      scrollToBottomImmediate();
+    } else {
+      // 计算"新增加的消息条数"（用最后一条消息是否是新增）
+      setUnreadNewCount((c) => c + 1);
+      setShowNewMsgBtn(true);
+    }
+  }, [messages, isFlipping, scrollToBottomImmediate]);
+
+  // 对话切换时重置并滚到底部
+  useEffect(() => {
+    isAtBottomRef.current = true;
+    setShowNewMsgBtn(false);
+    setUnreadNewCount(0);
+    lastMyMessageIdRef.current = null;
+    const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [messages, isFlipping]);
+  }, [activeConversationId]);
 
   const getContactName = (senderId: string): string => {
     if (senderId === "me") return beauty.myName;
@@ -314,11 +389,13 @@ export default function MessageList() {
   }, [messages, readBadgeEnabled]);
 
   return (
-    <div
-      ref={scrollRef}
-      className="chat-bg fancy-scroll flex-1 overflow-y-auto px-2 py-3 sm:px-4 md:px-8"
-      onClick={petHidingMode ? () => {} : undefined}
-    >
+    <div className="relative flex-1 flex flex-col">
+      <div
+        ref={scrollRef}
+        className="chat-bg fancy-scroll flex-1 overflow-y-auto px-2 py-3 sm:px-4 md:px-8"
+        onClick={petHidingMode ? () => {} : undefined}
+        onScroll={handleScroll}
+      >
       {petHidingMode && (
         <div
           className="sticky top-0 z-30 mx-auto mb-3 flex max-w-3xl items-center justify-between rounded-xl px-4 py-2"
@@ -826,6 +903,38 @@ export default function MessageList() {
           </div>
         );
       })()}
+      </div>
+
+      {/* 跳到新消息按钮：当用户在看旧消息、又有新消息到来时显示 */}
+      {showNewMsgBtn && (
+        <button
+          onClick={() => {
+            scrollToBottomSmooth();
+            setShowNewMsgBtn(false);
+            setUnreadNewCount(0);
+          }}
+          className="absolute z-40 bottom-3 right-3 sm:bottom-4 sm:right-6 md:bottom-4 md:right-10 flex items-center gap-1.5 rounded-full border px-3 py-2 shadow-lg transition hover:scale-105 active:scale-95"
+          style={{
+            background: "var(--card)",
+            borderColor: "var(--accent)",
+            boxShadow: "0 4px 14px color-mix(in srgb, var(--accent) 25%, transparent)",
+          }}
+          title="跳到最新消息"
+        >
+          <span
+            className="flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold"
+            style={{ background: "var(--accent)", color: "var(--card)" }}
+          >
+            {unreadNewCount > 99 ? "99+" : unreadNewCount}
+          </span>
+          <span className="text-[11px] font-medium" style={{ color: "var(--accent)" }}>
+            新消息
+          </span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--accent)" }}>
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </button>
+      )}
     </div>
   );
 }
