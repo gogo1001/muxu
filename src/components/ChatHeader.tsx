@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Settings, Phone, Pencil, Vote, Hand, PhoneCall, StickyNote, Music } from "lucide-react";
+import { Settings, Smartphone, Pencil, Vote, Hand, PhoneCall, StickyNote, Music } from "lucide-react";
 import { useAppStore } from "@/store/app";
 import ConvSwitchModal from "@/components/modals/ConvSwitchModal";
 import RPSModal from "@/components/modals/RPSModal";
@@ -200,7 +200,7 @@ export default function ChatHeader() {
               }}
               title="他的手机"
             >
-              <Phone className="h-5 w-5" />
+              <Smartphone className="h-5 w-5" />
             </button>
           )}
         </div>

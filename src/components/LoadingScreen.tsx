@@ -129,6 +129,14 @@ export default function LoadingScreen({ minDuration = 1000 }: Props) {
       >
         {Math.round(progress)}%
       </p>
+
+      {/* 使用教程提示 */}
+      <p
+        className="mt-4 text-[11px]"
+        style={{ color: "color-mix(in srgb, var(--text) 50%, transparent)" }}
+      >
+        使用教程在网站内的手机图标里
+      </p>
     </div>
   );
 }
