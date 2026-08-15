@@ -2,7 +2,7 @@
 
 /* ManualCardApp styles */
 .manualcard-wheel{position:relative;width:160px;height:160px;margin:0 auto}
-.manualcard-card{position:absolute;cursor:grab}
+.manualcard-card{position:absolute;transition:all 0.3s ease;cursor:grab}
 .manualcard-card:active{cursor:grabbing}
 .manualcard-card-back{width:28px;height:40px;border-radius:6px;border:1px solid rgba(0,0,0,0.1);box-shadow:0 2px 6px rgba(0,0,0,0.15);display:flex;align-items:center;justify-content:center}
 .manualcard-drawn{position:absolute;width:90px;height:130px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.2);display:flex;align-items:center;justify-content:center;padding:12px;user-select:none}
