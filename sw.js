@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cardtalk-v38-icon-tablebg';
+const CACHE_NAME = 'cardtalk-v39-icon-tablebg';
 const ASSETS = ['./', './index.html', './manifest.json', './favicon.svg'];
 
 self.addEventListener('install', (event) => {
