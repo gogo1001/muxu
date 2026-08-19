@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cardtalk-v45-createelement-fix';
+const CACHE_NAME = 'cardtalk-v53-final-deploy';
 const ASSETS = ['./', './index.html', './manifest.json', './favicon.svg'];
 
 self.addEventListener('install', (event) => {
