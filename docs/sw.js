@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cardtalk-v54-force-update';
+const CACHE_NAME = 'cardtalk-v55-fix-settings';
 const ASSETS = ['./', './index.html', './manifest.json', './favicon.svg'];
 
 self.addEventListener('install', (event) => {
