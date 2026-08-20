@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cardtalk-v57-fix-name-msgs-kb';
+const CACHE_NAME = 'cardtalk-v58-fix-reply-crash';
 const ASSETS = ['./', './index.html', './manifest.json', './favicon.svg'];
 
 self.addEventListener('install', (event) => {
