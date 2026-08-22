@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cardtalk-v60-idb-all';
+const CACHE_NAME = 'cardtalk-v61-idb-music';
 const ASSETS = ['./', './index.html', './manifest.json', './favicon.svg'];
 
 self.addEventListener('install', (event) => {
