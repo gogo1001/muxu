@@ -663,8 +663,8 @@ try{if("Notification"in window&&Notification.permission==="default"&&!window._mu
 window._muxuNotifRequested=true;
 Notification.requestPermission().then(function(p){if(p==="granted"){try{new Notification(title,_opts)}catch(e){}}}).catch(function(){});
 }}catch(e){}
-/* Method 4: Vibration as fallback */
-try{if(navigator.vibrate){navigator.vibrate([200,100,200])}}catch(e){}
+/* Method 4: Vibration disabled - sound only */
+
 /* Method 5: Update document title for visibility */
 try{if(document.hidden){document.title="\uD83D\uDCAC \u82DC\u84FF \u00b7 \u6709\u65B0\u6D88\u606F";var _origTitle="\u82DC\u84FF";setTimeout(function(){document.title=_origTitle},5000)}}catch(e){}
 }
